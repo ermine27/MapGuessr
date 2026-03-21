@@ -1,0 +1,297 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ================================
+   ラウンドセレクター / 終了画面 / エラー画面
+   ================================ */
+#round-select-screen,
+#end-screen,
+#error-screen,
+#setup-screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #fff;
+    z-index: 9999;
+}
+
+.select-container {
+    text-align: center;
+}
+
+.select-container h1 {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.select-container p {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    color: #ccc;
+}
+
+.round-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.round-btn {
+    padding: 14px 28px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    border: 2px solid #e94560;
+    background: transparent;
+    color: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.round-btn:hover {
+    background: #e94560;
+    transform: scale(1.05);
+}
+
+/* ================================
+   メインゲーム画面
+   ================================ */
+#game-screen {
+    position: fixed;
+    inset: 0;
+}
+
+#street-view {
+    width: 100%;
+    height: 100%;
+}
+
+/* タイムラインコントロール非表示 */
+#street-view .gm-bundled-control,
+#street-view .gm-bundled-control-on-bottom {
+    display: none !important;
+}
+
+/* ステータスバー */
+#status-bar {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    gap: 20px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    z-index: 100;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* ================================
+   推測用地図
+   ================================ */
+#map-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 200px;
+    height: 120px;
+    opacity: 0.85;
+    border-radius: 6px;
+    overflow: hidden;
+    z-index: 100;
+    transition: width 0.25s ease, height 0.25s ease, opacity 0.2s ease;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+#map-container:hover,
+#map-container.expanded {
+    opacity: 1;
+}
+
+#guess-map {
+    width: 100%;
+    height: 100%;
+}
+
+/* 地図コントロールボタン */
+#map-controls {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 4px;
+    z-index: 200;
+}
+
+#map-controls button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #333;
+    transition: background 0.15s;
+}
+
+#map-controls button:hover {
+    background: #fff;
+}
+
+#map-controls button.active {
+    background: #e94560;
+    color: #fff;
+}
+
+/* ================================
+   Guess ボタン
+   ================================ */
+#btn-guess {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 48px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    background: #e94560;
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    cursor: pointer;
+    z-index: 100;
+    transition: background 0.2s, opacity 0.2s;
+}
+
+#btn-guess:disabled {
+    background: #666;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+#btn-guess:not(:disabled):hover {
+    background: #c73650;
+}
+
+/* ================================
+   リザルトパネル
+   ================================ */
+#result-panel {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+}
+
+#result-content {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 32px 48px;
+    border-radius: 12px;
+    text-align: center;
+    min-width: 300px;
+}
+
+#result-content p {
+    font-size: 1.15rem;
+    margin-bottom: 12px;
+}
+
+#btn-next {
+    margin-top: 8px;
+    padding: 10px 36px;
+    font-size: 1rem;
+    font-weight: bold;
+    border: 2px solid #e94560;
+    background: transparent;
+    color: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#btn-next:hover {
+    background: #e94560;
+}
+
+/* ================================
+   終了画面の追加スタイル
+   ================================ */
+#end-total-score {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #e94560;
+}
+
+#end-avg-distance {
+    font-size: 1.2rem;
+    color: #ccc;
+}
+
+/* ================================
+   セットアップ画面
+   ================================ */
+#api-key-input {
+    display: block;
+    width: 360px;
+    max-width: 90vw;
+    margin: 0 auto 16px;
+    padding: 10px 14px;
+    font-size: 1rem;
+    border: 2px solid #e94560;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    outline: none;
+}
+
+#api-key-input::placeholder {
+    color: #777;
+}
+
+.setup-note {
+    font-size: 0.85rem !important;
+    color: #777 !important;
+    margin-top: 12px !important;
+}
+
+#btn-change-key {
+    display: block;
+    margin: 16px auto 0;
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+#btn-change-key:hover {
+    color: #fff;
+}

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MapGuessr</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ラウンドセレクター画面 -->
+    <div id="round-select-screen">
+        <div class="select-container">
+            <h1>MapGuessr</h1>
+            <p>ラウンド数を選んでください</p>
+            <div class="round-buttons">
+                <button class="round-btn" data-rounds="5">5</button>
+                <button class="round-btn" data-rounds="10">10</button>
+                <button class="round-btn" data-rounds="20">20</button>
+                <button class="round-btn" data-rounds="50">50</button>
+                <button class="round-btn" data-rounds="100">100</button>
+            </div>
+            <button id="btn-change-key">APIキーを変更</button>
+        </div>
+    </div>
+
+    <!-- メインゲーム画面 -->
+    <div id="game-screen" style="display:none;">
+        <div id="street-view"></div>
+
+        <div id="status-bar">
+            <span id="round-info">Round 1 / 5</span>
+            <span id="total-score-info">Score: 0</span>
+        </div>
+
+        <div id="map-container">
+            <div id="map-controls">
+                <button id="btn-resize" title="サイズ切り替え">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <polyline points="9 21 3 21 3 15"></polyline>
+                        <line x1="21" y1="3" x2="14" y2="10"></line>
+                        <line x1="3" y1="21" x2="10" y2="14"></line>
+                    </svg>
+                </button>
+                <button id="btn-lock" title="マップを固定">
+                    <svg id="lock-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <line x1="12" y1="17" x2="12" y2="11"></line>
+                        <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"></path>
+                        <line x1="12" y1="11" x2="12" y2="3"></line>
+                        <path d="M9 3l3-0 3 0"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="guess-map"></div>
+        </div>
+
+        <button id="btn-guess" disabled>Guess</button>
+
+        <div id="result-panel" style="display:none;">
+            <div id="result-content">
+                <p id="result-distance"></p>
+                <p id="result-score"></p>
+                <p id="result-total"></p>
+                <button id="btn-next">Next Round</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ゲーム終了画面 -->
+    <div id="end-screen" style="display:none;">
+        <div class="select-container">
+            <h1>ゲーム終了</h1>
+            <p id="end-total-score"></p>
+            <p id="end-avg-distance"></p>
+            <button id="btn-restart" class="round-btn">もう一度プレイ</button>
+        </div>
+    </div>
+
+    <!-- エラー表示 -->
+    <div id="error-screen" style="display:none;">
+        <div class="select-container">
+            <h1>エラー</h1>
+            <p id="error-message">ストリートビューが見つかりませんでした。ページをリロードしてください。</p>
+        </div>
+    </div>
+
+    <!-- セットアップ画面（初回・APIキー変更時） -->
+    <div id="setup-screen" style="display:none;">
+        <div class="select-container">
+            <h1>MapGuessr</h1>
+            <p>Google Maps API キーを入力してください</p>
+            <input type="text" id="api-key-input" placeholder="AIzaSy..." autocomplete="off" spellcheck="false">
+            <button id="btn-save-key" class="round-btn">保存して開始</button>
+            <p class="setup-note">入力したキーはこのブラウザの localStorage にのみ保存されます。</p>
+        </div>
+    </div>
+
+    <!-- ゲームロジック（Maps API の動的ロードも含む） -->
+    <script src="script.js"></script>
+
+</body>
+
+</html>
