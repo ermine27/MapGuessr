@@ -577,6 +577,12 @@ function showResult(distanceKm, score, roundTime) {
         }
     });
 
+    // 正解ピンをクリックでストリートビューを新タブで開く
+    resultMarker.addListener('click', function () {
+        var streetViewUrl = 'https://maps.google.com/?cbll=' + answerLatLng.lat() + ',' + answerLatLng.lng() + '&layer=c';
+        window.open(streetViewUrl, '_blank');
+    });
+
     resultLine = new google.maps.Polyline({
         path: [guessMarker.getPosition(), answerLatLng],
         map: guessMap,
@@ -702,6 +708,12 @@ function initEndMap() {
             title: 'Round ' + roundNum + ' 正解'
         });
         endMapMarkers.push(ansMarker);
+
+        // 正解ピンをクリックでストリートビューを新タブで開く
+        ansMarker.addListener('click', function () {
+            var streetViewUrl = 'https://maps.google.com/?cbll=' + ansPos.lat() + ',' + ansPos.lng() + '&layer=c';
+            window.open(streetViewUrl, '_blank');
+        });
 
         // 推測マーカー: シンプルなドット
         var guessMarkerEnd = new google.maps.Marker({
