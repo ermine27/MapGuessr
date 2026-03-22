@@ -16,7 +16,6 @@ body {
    ラウンドセレクター / 終了画面 / エラー画面
    ================================ */
 #round-select-screen,
-#end-screen,
 #error-screen,
 #setup-screen {
     position: fixed;
@@ -27,6 +26,19 @@ body {
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     color: #fff;
     z-index: 9999;
+}
+
+#end-screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #fff;
+    z-index: 9999;
+    overflow-y: auto;
+    padding: 40px 20px;
 }
 
 .select-container {
@@ -82,7 +94,7 @@ body {
 #site-logo {
     position: fixed;
     top: 10px;
-    right: 12px;
+    right: 24px;
     z-index: 10000;
     user-select: none;
     pointer-events: none;
