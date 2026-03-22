@@ -435,9 +435,16 @@ function onReturnToStart() {
 }
 
 function onReturnToTitle() {
-    if (!confirm('ゲームを終了してタイトルに戻りますか？')) return;
-    clearInterval(roundTimerInterval);
-    resetGame();
+    var overlay = $('modal-overlay');
+    overlay.style.display = 'flex';
+    $('btn-modal-confirm').onclick = function () {
+        overlay.style.display = 'none';
+        clearInterval(roundTimerInterval);
+        resetGame();
+    };
+    $('btn-modal-cancel').onclick = function () {
+        overlay.style.display = 'none';
+    };
 }
 
 // ============================================================
