@@ -3,6 +3,8 @@ var totalRounds = 5;
 var currentRound = 0;
 var totalScore = 0;
 var distances = [];
+var scores = [];
+var roundTimes = [];
 
 var panorama = null;
 var guessMap = null;
@@ -13,11 +15,33 @@ var resultLine = null;
 
 // 地図オーバーレイの状態
 var mapLocked = false;
+var isMapHovered = false;
 var sizeStage = 0; // 0=小(25%), 1=中(50%), 2=大(70%)
-var SIZE_RATIOS = [0.25, 0.50, 0.70];
+
+// タイマー
+var roundTimerInterval = null;
+var roundStartTime = 0;
+
+// ---- 表示設定 ----
+var showMapLabels = true; // true: 国名・地名等を表示、false: 非表示
+var showCompass = true;  // true: コンパスを表示、false: 非表示
 
 // ---- DOM キャッシュ ----
 function $(id) { return document.getElementById(id); }
+
+// ---- ユーティリティ ----
+function formatTime(totalSec) {
+    var m = Math.floor(totalSec / 60);
+    var s = totalSec % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function formatDistance(km) {
+    if (km < 1) {
+        return Math.round(km * 1000) + ' m';
+    }
+    return km.toFixed(1) + ' km';
+}
 
 // ---- Google Maps コールバック（グローバルに公開が必要） ----
 function initGame() {
@@ -56,6 +80,8 @@ function startGame() {
     currentRound = 0;
     totalScore = 0;
     distances = [];
+    scores = [];
+    roundTimes = [];
 
     $('round-select-screen').style.display = 'none';
     $('game-screen').style.display = '';
@@ -68,18 +94,24 @@ function startGame() {
         motionTrackingControl: false,
         enableCloseButton: false,
         zoomControl: true,
-        panControl: true,
+        panControl: false,
         linksControl: true
     });
+
+    if (showCompass) {
+        $('compass').style.display = '';
+        panorama.addListener('pov_changed', updateCompass);
+    } else {
+        $('compass').style.display = 'none';
+    }
 
     guessMap = new google.maps.Map($('guess-map'), {
         center: { lat: 36, lng: 140 },
         zoom: 5,
         clickableIcons: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        mapTypeControl: false,
-        styles: [
+        disableDefaultUI: true,
+        zoomControl: false,
+        styles: showMapLabels ? [] : [
             { elementType: 'labels', stylers: [{ visibility: 'off' }] }
         ]
     });
@@ -98,65 +130,116 @@ function startGame() {
     $('btn-guess').addEventListener('click', onGuess);
     $('btn-next').addEventListener('click', onNextRound);
 
+    $('btn-zoom-in').onclick = function () {
+        if (guessMap) guessMap.setZoom(guessMap.getZoom() + 1);
+    };
+    $('btn-zoom-out').onclick = function () {
+        if (guessMap) guessMap.setZoom(Math.max(0, guessMap.getZoom() - 1));
+    };
+
     setupMapOverlay();
     nextRound();
 }
 
 // ============================================================
-// 推測用地図のオーバーレイ制御
+// コンパス
 // ============================================================
-function setupMapOverlay() {
-    var container = $('map-container');
-    var btnLock = $('btn-lock');
-    var btnResize = $('btn-resize');
-
-    container.addEventListener('mouseenter', function () {
-        if (!mapLocked) {
-            applyExpandedSize(container);
-            container.classList.add('expanded');
-        }
-    });
-
-    container.addEventListener('mouseleave', function () {
-        if (!mapLocked) {
-            container.style.width = '200px';
-            container.style.height = '120px';
-            container.classList.remove('expanded');
-            resizeMapTiles();
-        }
-    });
-
-    btnLock.addEventListener('click', function (e) {
-        e.stopPropagation();
-        mapLocked = !mapLocked;
-        btnLock.classList.toggle('active', mapLocked);
-        if (mapLocked) {
-            applyExpandedSize(container);
-            container.classList.add('expanded');
-        } else {
-            container.style.width = '200px';
-            container.style.height = '120px';
-            container.classList.remove('expanded');
-        }
-        resizeMapTiles();
-    });
-
-    btnResize.addEventListener('click', function (e) {
-        e.stopPropagation();
-        sizeStage = (sizeStage + 1) % 3;
-        if (mapLocked || container.classList.contains('expanded')) {
-            applyExpandedSize(container);
-            resizeMapTiles();
-        }
-    });
+function updateCompass() {
+    if (!panorama) return;
+    var heading = panorama.getPov().heading;
+    var needle = $('compass-needle');
+    if (needle) needle.setAttribute('transform', 'rotate(' + heading + ', 24, 24)');
 }
 
-function applyExpandedSize(container) {
-    var ratio = SIZE_RATIOS[sizeStage];
-    var w = Math.round(window.innerWidth * ratio);
-    var h = Math.round(w * 3 / 4);
+// ============================================================
+// 推測用地図のオーバーレイ制御
+// ============================================================
+
+// 展開時サイズ（3段階）
+var EXPANDED_SIZES = [
+    { ratio: 0.25 },
+    { ratio: 0.50 },
+    { ratio: 0.70 }
+];
+var MINIMAP_W = 240;
+var MINIMAP_H = 180;
+
+function setupMapOverlay() {
+    var wrapper = $('map-wrapper');
+
+    setMinimapSize();
+
+    // ホバーで展開（ヒンボタン含むラッパー全体で検知）
+    wrapper.addEventListener('mouseenter', function () {
+        isMapHovered = true;
+        if (!mapLocked) applyExpandedSize();
+    });
+    wrapper.addEventListener('mouseleave', function () {
+        isMapHovered = false;
+        if (!mapLocked) setMinimapSize();
+    });
+
+    // ピンボタン
+    $('btn-pin').onclick = function (e) {
+        e.stopPropagation();
+        mapLocked = !mapLocked;
+        $('btn-pin').classList.toggle('active', mapLocked);
+        if (!mapLocked && !isMapHovered) setMinimapSize();
+    };
+
+    // ↖ 展開サイズ拡大（sizeStage を上げる）
+    $('btn-size-up').onclick = function (e) {
+        e.stopPropagation();
+        if (sizeStage < 2) {
+            sizeStage++;
+            if (isMapHovered || mapLocked) applyExpandedSize();
+            updateSizeButtons();
+        }
+    };
+
+    // ↘ 展開サイズ縮小（sizeStage を下げる）
+    $('btn-size-down').onclick = function (e) {
+        e.stopPropagation();
+        if (sizeStage > 0) {
+            sizeStage--;
+            if (isMapHovered || mapLocked) applyExpandedSize();
+            updateSizeButtons();
+        }
+    };
+}
+
+function setMinimapSize() {
+    var container = $('map-container');
+    container.style.width = MINIMAP_W + 'px';
+    container.style.height = MINIMAP_H + 'px';
+    container.style.opacity = '0.75';
+    syncWrapperWidth(MINIMAP_W);
+    resizeMapTiles();
+}
+
+function applyExpandedSize() {
+    var container = $('map-container');
+    var s = EXPANDED_SIZES[sizeStage];
+    var w = s.w || Math.round(window.innerWidth * s.ratio);
+    var h = s.h || Math.round(w * 3 / 4);
     container.style.width = w + 'px';
     container.style.height = h + 'px';
+    container.style.opacity = '1';
+    syncWrapperWidth(w);
+    updateSizeButtons();
+    resizeMapTiles();
+}
+
+function syncWrapperWidth(w) {
+    var header = $('map-header');
+    var footer = $('map-footer');
+    if (header) header.style.width = w + 'px';
+    if (footer) footer.style.width = w + 'px';
+}
+
+function updateSizeButtons() {
+    $('btn-size-up').disabled = (sizeStage === 2);
+    $('btn-size-down').disabled = (sizeStage === 0);
 }
 
 function resizeMapTiles() {
@@ -181,6 +264,15 @@ function nextRound() {
 
     guessMap.setCenter({ lat: 36, lng: 140 });
     guessMap.setZoom(5);
+
+    // タイマーリセット
+    clearInterval(roundTimerInterval);
+    $('timer-info').textContent = '00:00';
+    roundStartTime = Date.now();
+    roundTimerInterval = setInterval(function () {
+        var elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
+        $('timer-info').textContent = formatTime(elapsed);
+    }, 1000);
 
     findRandomStreetView(0);
 }
@@ -228,6 +320,11 @@ function onGuess() {
 
     $('btn-guess').disabled = true;
 
+    // タイマー停止・記録
+    clearInterval(roundTimerInterval);
+    var roundTime = Math.floor((Date.now() - roundStartTime) / 1000);
+    roundTimes.push(roundTime);
+
     var guessLatLng = guessMarker.getPosition();
     var distanceM = google.maps.geometry.spherical.computeDistanceBetween(answerLatLng, guessLatLng);
     var distanceKm = distanceM / 1000;
@@ -235,14 +332,21 @@ function onGuess() {
 
     totalScore += score;
     distances.push(distanceKm);
+    scores.push(score);
 
-    showResult(distanceKm, score);
+    showResult(distanceKm, score, roundTime);
 }
 
 // ============================================================
 // リザルト表示
 // ============================================================
-function showResult(distanceKm, score) {
+function showResult(distanceKm, score, roundTime) {
+    // 地図を最大サイズに拡大・固定
+    mapLocked = true;
+    sizeStage = 2;
+    applyExpandedSize();
+    $('btn-pin').classList.add('active');
+
     resultMarker = new google.maps.Marker({
         position: answerLatLng,
         map: guessMap,
@@ -269,9 +373,10 @@ function showResult(distanceKm, score) {
     bounds.extend(answerLatLng);
     guessMap.fitBounds(bounds, 40);
 
-    $('result-distance').textContent = '距離: ' + distanceKm.toFixed(1) + ' km';
-    $('result-score').textContent = 'スコア: ' + score + ' / 5000';
+    $('result-distance').textContent = '距離: ' + formatDistance(distanceKm);
+    $('result-score').textContent = 'スコア: ' + score;
     $('result-total').textContent = '累計スコア: ' + totalScore;
+    $('result-time').textContent = '経過時間: ' + formatTime(roundTime);
 
     $('btn-next').textContent = currentRound >= totalRounds ? '結果を見る' : 'Next Round';
     $('result-panel').style.display = '';
@@ -281,6 +386,11 @@ function showResult(distanceKm, score) {
 // Next Round / 結果を見る
 // ============================================================
 function onNextRound() {
+    // 結果表示中に拡大した地図をミニマップに戻す
+    mapLocked = false;
+    $('btn-pin').classList.remove('active');
+    if (!isMapHovered) setMinimapSize();
+
     if (currentRound >= totalRounds) {
         showEndScreen();
     } else {
@@ -294,11 +404,20 @@ function onNextRound() {
 function showEndScreen() {
     $('game-screen').style.display = 'none';
     $('result-panel').style.display = 'none';
+    clearInterval(roundTimerInterval);
 
     var avgDist = distances.reduce(function (a, b) { return a + b; }, 0) / distances.length;
 
     $('end-total-score').textContent = '合計スコア: ' + totalScore + ' / ' + (totalRounds * 5000);
     $('end-avg-distance').textContent = '平均距離: ' + avgDist.toFixed(1) + ' km';
+
+    var html = '<table class="round-table"><thead><tr><th>Round</th><th>得点</th><th>距離</th><th>時間</th></tr></thead><tbody>';
+    for (var i = 0; i < scores.length; i++) {
+        html += '<tr><td>' + (i + 1) + '</td><td>' + scores[i] + '</td><td>' + formatDistance(distances[i]) + '</td><td>' + formatTime(roundTimes[i]) + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    $('round-results-table').innerHTML = html;
+
     $('end-screen').style.display = '';
 
     $('btn-restart').addEventListener('click', function handler() {
@@ -311,19 +430,22 @@ function resetGame() {
     totalScore = 0;
     currentRound = 0;
     distances = [];
+    scores = [];
+    roundTimes = [];
     answerLatLng = null;
     mapLocked = false;
+    isMapHovered = false;
     sizeStage = 0;
+    clearInterval(roundTimerInterval);
+    roundTimerInterval = null;
 
     if (guessMarker) { guessMarker.setMap(null); guessMarker = null; }
     if (resultMarker) { resultMarker.setMap(null); resultMarker = null; }
     if (resultLine) { resultLine.setMap(null); resultLine = null; }
 
-    $('btn-lock').classList.remove('active');
-    var container = $('map-container');
-    container.style.width = '200px';
-    container.style.height = '120px';
-    container.classList.remove('expanded');
+    var btnPin = $('btn-pin');
+    if (btnPin) btnPin.classList.remove('active');
+    setMinimapSize();
 
     $('end-screen').style.display = 'none';
     setupRoundSelect();
