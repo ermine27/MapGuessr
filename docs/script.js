@@ -189,7 +189,10 @@ function updateCompass() {
     if (!panorama) return;
     var heading = panorama.getPov().heading;
     var needle = $('compass-needle');
-    if (needle) needle.setAttribute('transform', 'rotate(' + heading + ', 24, 24)');
+    // heading はカメラの向き（0=北,90=東）
+    // 針は「世界の北方向」を指すので、カメラが東を向く(+90°)と北は左(-90°)にある
+    // → 針の回転量は -heading
+    if (needle) needle.setAttribute('transform', 'rotate(' + (-heading) + ', 24, 24)');
 }
 
 // ============================================================
