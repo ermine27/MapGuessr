@@ -137,11 +137,54 @@ body {
 /* コンパス */
 #compass {
     position: fixed;
-    bottom: 110px;
+    bottom: 175px;
     left: 20px;
     z-index: 100;
     pointer-events: none;
     user-select: none;
+}
+
+/* ================================
+   ストリートビュー操作コントロール
+   ================================ */
+#sv-controls {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 100;
+    display: grid;
+    grid-template-columns: 40px 40px;
+    grid-template-rows: repeat(3, 40px);
+    gap: 5px;
+}
+
+.sv-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    cursor: pointer;
+    color: #fff;
+    transition: background 0.15s;
+}
+
+.sv-btn:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.88);
+}
+
+.sv-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.sv-btn.active {
+    background: #e94560;
+    border-color: #e94560;
 }
 
 /* ================================
