@@ -22,6 +22,14 @@ var sizeStage = 0; // 0=小(25%), 1=中(50%), 2=大(70%)
 var roundTimerInterval = null;
 var roundStartTime = 0;
 
+// No Moveモード・移動履歴・チェックポイント
+var allowMove = true;           // false = 移動系ボタン非表示（No Move時）
+var moveHistory = [];            // 移動前pano IDのスタック（移動を戻す用）
+var currentPanoId = null;        // 現在表示中のpano ID
+var isProgrammaticPanoChange = false; // プログラムによる遷移フラグ
+var startPanoData = null;        // ラウンド開始時の { pano, pov }
+var checkpointData = null;       // チェックポイント { pano, pov } または null
+
 // ---- 表示設定 ----
 var showMapLabels = true; // true: 国名・地名等を表示、false: 非表示
 var showCompass = true;  // true: コンパスを表示、false: 非表示
@@ -93,7 +101,7 @@ function startGame() {
         motionTracking: false,
         motionTrackingControl: false,
         enableCloseButton: false,
-        zoomControl: true,
+        zoomControl: false,
         panControl: false,
         linksControl: true
     });
@@ -104,6 +112,20 @@ function startGame() {
     } else {
         $('compass').style.display = 'none';
     }
+
+    // ストリートビュー移動追跡（移動を戻す用）
+    panorama.addListener('pano_changed', function () {
+        if (isProgrammaticPanoChange) {
+            isProgrammaticPanoChange = false;
+            currentPanoId = panorama.getPano();
+            return;
+        }
+        if (currentPanoId !== null) {
+            moveHistory.push(currentPanoId);
+        }
+        currentPanoId = panorama.getPano();
+        updateMoveBackButton();
+    });
 
     guessMap = new google.maps.Map($('guess-map'), {
         center: { lat: 36, lng: 140 },
@@ -138,6 +160,20 @@ function startGame() {
     };
 
     setupMapOverlay();
+
+    // SVコントロールボタンのセットアップ
+    $('btn-sv-zoom-in').onclick = function () {
+        if (panorama) panorama.setZoom(panorama.getZoom() + 1);
+    };
+    $('btn-sv-zoom-out').onclick = function () {
+        if (panorama) panorama.setZoom(Math.max(0, panorama.getZoom() - 1));
+    };
+    $('btn-move-back').onclick = onMoveBack;
+    $('btn-checkpoint').onclick = onCheckpoint;
+    $('btn-return-start').onclick = onReturnToStart;
+    $('btn-return-title').onclick = onReturnToTitle;
+
+    updateNoMoveButtons();
     nextRound();
 }
 
@@ -265,6 +301,14 @@ function nextRound() {
     guessMap.setCenter({ lat: 36, lng: 140 });
     guessMap.setZoom(5);
 
+    // チェックポイント・移動履歴リセット
+    checkpointData = null;
+    startPanoData = null;
+    moveHistory = [];
+    currentPanoId = null;
+    updateCheckpointButton();
+    updateMoveBackButton();
+
     // タイマーリセット
     clearInterval(roundTimerInterval);
     $('timer-info').textContent = '00:00';
@@ -302,14 +346,105 @@ function findRandomStreetView(attempt) {
         function (data, status) {
             if (status === google.maps.StreetViewStatus.OK) {
                 answerLatLng = data.location.latLng;
-                panorama.setPano(data.location.pano);
-                panorama.setPov({ heading: Math.random() * 360, pitch: 0 });
+                var startPano = data.location.pano;
+                var startPov = { heading: Math.random() * 360, pitch: 0 };
+                moveHistory = [];
+                checkpointData = null;
+                startPanoData = { pano: startPano, pov: startPov };
+                currentPanoId = startPano;
+                isProgrammaticPanoChange = true;
+                panorama.setPano(startPano);
+                panorama.setPov(startPov);
                 panorama.setVisible(true);
+                updateMoveBackButton();
+                updateCheckpointButton();
             } else {
                 findRandomStreetView(attempt + 1);
             }
         }
     );
+}
+
+// ============================================================
+// SVコントロール ヘルパー
+// ============================================================
+function updateMoveBackButton() {
+    var btn = $('btn-move-back');
+    if (btn) btn.disabled = (moveHistory.length === 0);
+}
+
+function updateCheckpointButton() {
+    var isSet = checkpointData !== null;
+    var iconUnset = $('icon-cp-unset');
+    var iconSet = $('icon-cp-set');
+    if (iconUnset) iconUnset.style.display = isSet ? 'none' : '';
+    if (iconSet) iconSet.style.display = isSet ? '' : 'none';
+    var btn = $('btn-checkpoint');
+    if (btn) {
+        btn.title = isSet ? 'チェックポイントに戻る (C)' : 'チェックポイントを設定 (C)';
+        btn.classList.toggle('active', isSet);
+    }
+}
+
+function updateNoMoveButtons() {
+    var btns = document.querySelectorAll('.sv-btn-nomove');
+    btns.forEach(function (btn) {
+        btn.style.display = allowMove ? '' : 'none';
+    });
+}
+
+// ============================================================
+// SVコントロール アクション
+// ============================================================
+function onMoveBack() {
+    if (!allowMove || moveHistory.length === 0) return;
+    if ($('result-panel').style.display !== 'none') return;
+    var prevPano = moveHistory.pop();
+    isProgrammaticPanoChange = true;
+    panorama.setPano(prevPano);
+    currentPanoId = prevPano;
+    updateMoveBackButton();
+}
+
+function onCheckpoint() {
+    if (!allowMove) return;
+    if ($('result-panel').style.display !== 'none') return;
+    if (checkpointData === null) {
+        // チェックポイントを記憶
+        checkpointData = { pano: panorama.getPano(), pov: panorama.getPov() };
+    } else {
+        // チェックポイントに戻る
+        isProgrammaticPanoChange = true;
+        panorama.setPano(checkpointData.pano);
+        panorama.setPov(checkpointData.pov);
+        currentPanoId = checkpointData.pano;
+        checkpointData = null;
+    }
+    updateCheckpointButton();
+}
+
+function onReturnToStart() {
+    if (!allowMove || !startPanoData) return;
+    if ($('result-panel').style.display !== 'none') return;
+    isProgrammaticPanoChange = true;
+    panorama.setPano(startPanoData.pano);
+    panorama.setPov(startPanoData.pov);
+    currentPanoId = startPanoData.pano;
+    moveHistory = [];
+    updateMoveBackButton();
+}
+
+function onReturnToTitle() {
+    var overlay = $('modal-overlay');
+    overlay.style.display = 'flex';
+    $('btn-modal-confirm').onclick = function () {
+        overlay.style.display = 'none';
+        clearInterval(roundTimerInterval);
+        resetGame();
+    };
+    $('btn-modal-cancel').onclick = function () {
+        overlay.style.display = 'none';
+    };
 }
 
 // ============================================================
@@ -438,6 +573,11 @@ function resetGame() {
     sizeStage = 0;
     clearInterval(roundTimerInterval);
     roundTimerInterval = null;
+    moveHistory = [];
+    currentPanoId = null;
+    startPanoData = null;
+    checkpointData = null;
+    isProgrammaticPanoChange = false;
 
     if (guessMarker) { guessMarker.setMap(null); guessMarker = null; }
     if (resultMarker) { resultMarker.setMap(null); resultMarker = null; }
