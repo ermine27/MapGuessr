@@ -68,6 +68,14 @@ body {
     transform: scale(1.05);
 }
 
+.error-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
 /* ================================
    サイトロゴ（常時表示）
    ================================ */

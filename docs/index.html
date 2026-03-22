@@ -193,7 +193,13 @@
     <div id="error-screen" style="display:none;">
         <div class="select-container">
             <h1>エラー</h1>
-            <p id="error-message">ストリートビューが見つかりませんでした。ページをリロードしてください。</p>
+            <p id="error-message"></p>
+            <div class="error-actions">
+                <button id="btn-retry-round" class="round-btn" style="display:none;">このラウンドを再試行</button>
+                <button id="btn-error-to-title" class="round-btn" style="display:none;">タイトルに戻る</button>
+                <button id="btn-error-reload" class="round-btn" style="display:none;"
+                    onclick="location.reload()">ページを再読み込み</button>
+            </div>
         </div>
     </div>
 
