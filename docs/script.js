@@ -5,6 +5,8 @@ var totalScore = 0;
 var distances = [];
 var scores = [];
 var roundTimes = [];
+var guessPositions = [];   // ラウンドごとの推測位置 (google.maps.LatLng)
+var answerPositions = [];  // ラウンドごとの正解位置 (google.maps.LatLng)
 
 var panorama = null;
 var guessMap = null;
@@ -95,6 +97,8 @@ function startGame() {
     distances = [];
     scores = [];
     roundTimes = [];
+    guessPositions = [];
+    answerPositions = [];
 
     $('round-select-screen').style.display = 'none';
     $('game-screen').style.display = '';
@@ -544,6 +548,8 @@ function onGuess() {
     totalScore += score;
     distances.push(distanceKm);
     scores.push(score);
+    guessPositions.push(guessLatLng);
+    answerPositions.push(answerLatLng);
 
     showResult(distanceKm, score, roundTime);
 }
@@ -631,10 +637,104 @@ function showEndScreen() {
 
     $('end-screen').style.display = '';
 
+    // 結果マップを初期化・描画
+    initEndMap();
+
     $('btn-restart').addEventListener('click', function handler() {
         $('btn-restart').removeEventListener('click', handler);
         resetGame();
     });
+}
+
+var endMap = null;
+var endMapMarkers = [];
+var endMapLines = [];
+
+function initEndMap() {
+    var container = $('end-map');
+    if (!container) return;
+
+    // 地図を初期化（または再利用）
+    if (!endMap) {
+        endMap = new google.maps.Map(container, {
+            center: { lat: 36, lng: 140 },
+            zoom: 3,
+            clickableIcons: false,
+            disableDefaultUI: true,
+            zoomControl: true,
+            styles: showMapLabels ? [] : [
+                { elementType: 'labels', stylers: [{ visibility: 'off' }] }
+            ]
+        });
+    }
+
+    // 前回のマーカー・線をクリア
+    endMapMarkers.forEach(function (m) { m.setMap(null); });
+    endMapLines.forEach(function (l) { l.setMap(null); });
+    endMapMarkers = [];
+    endMapLines = [];
+
+    var bounds = new google.maps.LatLngBounds();
+
+    for (var i = 0; i < answerPositions.length; i++) {
+        var roundNum = i + 1;
+        var ansPos = answerPositions[i];
+        var guessPos = guessPositions[i];
+
+        // 正解マーカー: 数字付きラベル
+        var ansMarker = new google.maps.Marker({
+            position: ansPos,
+            map: endMap,
+            label: {
+                text: String(roundNum),
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 'bold'
+            },
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 14,
+                fillColor: '#00c853',
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 2
+            },
+            title: 'Round ' + roundNum + ' 正解'
+        });
+        endMapMarkers.push(ansMarker);
+
+        // 推測マーカー: シンプルなドット
+        var guessMarkerEnd = new google.maps.Marker({
+            position: guessPos,
+            map: endMap,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: '#e94560',
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 1.5
+            },
+            title: 'Round ' + roundNum + ' 推測'
+        });
+        endMapMarkers.push(guessMarkerEnd);
+
+        // 線
+        var line = new google.maps.Polyline({
+            path: [guessPos, ansPos],
+            map: endMap,
+            strokeColor: '#e94560',
+            strokeWeight: 2,
+            strokeOpacity: 0.6
+        });
+        endMapLines.push(line);
+
+        bounds.extend(ansPos);
+        bounds.extend(guessPos);
+    }
+
+    endMap.fitBounds(bounds, { top: 30, right: 30, bottom: 30, left: 30 });
+    google.maps.event.trigger(endMap, 'resize');
 }
 
 function resetGame() {
@@ -643,6 +743,8 @@ function resetGame() {
     distances = [];
     scores = [];
     roundTimes = [];
+    guessPositions = [];
+    answerPositions = [];
     answerLatLng = null;
     mapLocked = false;
     isMapHovered = false;
