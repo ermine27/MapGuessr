@@ -29,6 +29,10 @@ var currentPanoId = null;        // 現在表示中のpano ID
 var isProgrammaticPanoChange = false; // プログラムによる遷移フラグ
 var startPanoData = null;        // ラウンド開始時の { pano, pov }
 var checkpointData = null;       // チェックポイント { pano, pov } または null
+var northRotateAnimId = null;    // 北向きアニメーション用 rAF ID
+
+// ---- 北向きアニメーション速度 ----
+var NORTH_ROTATE_SPEED = 540; // degrees/second（大きくすると速く、小さくすると遅くなります）
 
 // ---- 表示設定 ----
 var showMapLabels = true; // true: 国名・地名等を表示、false: 非表示
@@ -303,6 +307,7 @@ function nextRound() {
     guessMap.setZoom(5);
 
     // チェックポイント・移動履歴リセット
+    if (northRotateAnimId) { cancelAnimationFrame(northRotateAnimId); northRotateAnimId = null; }
     checkpointData = null;
     startPanoData = null;
     moveHistory = [];
@@ -435,6 +440,38 @@ function onReturnToStart() {
     updateMoveBackButton();
 }
 
+// ============================================================
+// 北向きアニメーション
+// ============================================================
+function rotateToNorthAnimated() {
+    if (northRotateAnimId) {
+        cancelAnimationFrame(northRotateAnimId);
+        northRotateAnimId = null;
+    }
+    var lastTime = null;
+    function animate(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        var elapsed = timestamp - lastTime;
+        lastTime = timestamp;
+
+        var pov = panorama.getPov();
+        // 現在の heading を [0, 360) に正規化
+        var current = ((pov.heading % 360) + 360) % 360;
+        // 最短経路での目標 0 への差分（[-180, 180]）
+        var delta = current <= 180 ? -current : 360 - current;
+
+        var maxDeg = NORTH_ROTATE_SPEED * (elapsed / 1000);
+        if (Math.abs(delta) <= maxDeg) {
+            panorama.setPov({ heading: 0, pitch: pov.pitch });
+            northRotateAnimId = null;
+            return;
+        }
+        panorama.setPov({ heading: pov.heading + (delta > 0 ? maxDeg : -maxDeg), pitch: pov.pitch });
+        northRotateAnimId = requestAnimationFrame(animate);
+    }
+    northRotateAnimId = requestAnimationFrame(animate);
+}
+
 function onReturnToTitle() {
     var overlay = $('modal-overlay');
     overlay.style.display = 'flex';
@@ -475,8 +512,8 @@ function setupKeyboardShortcuts() {
                 if (!resultVisible && allowMove) onReturnToStart();
                 break;
             case 'KeyN':
-                if (!resultVisible && guessMap && guessMap.setHeading) {
-                    guessMap.setHeading(0);
+                if (!resultVisible && panorama) {
+                    rotateToNorthAnimated();
                 }
                 break;
         }
@@ -609,6 +646,7 @@ function resetGame() {
     sizeStage = 0;
     clearInterval(roundTimerInterval);
     roundTimerInterval = null;
+    if (northRotateAnimId) { cancelAnimationFrame(northRotateAnimId); northRotateAnimId = null; }
     moveHistory = [];
     currentPanoId = null;
     startPanoData = null;
