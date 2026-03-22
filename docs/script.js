@@ -36,6 +36,9 @@ var northRotateAnimId = null;    // 北向きアニメーション用 rAF ID
 // ---- 北向きアニメーション速度 ----
 var NORTH_ROTATE_SPEED = 540; // degrees/second（大きくすると速く、小さくすると遅くなります）
 
+// ---- マップ設定 ----
+var currentMapKey = 'japan'; // 使用するマップ（maps/ フォルダのファイル名と対応）
+
 // ---- 表示設定 ----
 var showMapLabels = true; // true: 国名・地名等を表示、false: 非表示
 var showCompass = true;  // true: コンパスを表示、false: 非表示
@@ -60,6 +63,11 @@ function formatDistance(km) {
 // ---- Google Maps コールバック（グローバルに公開が必要） ----
 function initGame() {
     setupKeyboardShortcuts();
+    $('btn-retry-round').onclick = retryCurrentRound;
+    $('btn-error-to-title').onclick = function () {
+        $('error-screen').style.display = 'none';
+        resetGame();
+    };
     setupRoundSelect();
 }
 
@@ -183,7 +191,35 @@ function startGame() {
     $('btn-return-title').onclick = onReturnToTitle;
 
     updateNoMoveButtons();
-    nextRound();
+    loadMapData(currentMapKey, function () {
+        nextRound();
+    });
+}
+
+// ============================================================
+// マップデータ読み込み（fetch）
+// ============================================================
+function loadMapData(mapKey, callback) {
+    if (window.MAPGUESSR_SEEDS && window.MAPGUESSR_SEEDS[mapKey]) {
+        callback();
+        return;
+    }
+    fetch('maps/' + mapKey + '.json')
+        .then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        })
+        .then(function (data) {
+            if (!window.MAPGUESSR_SEEDS) window.MAPGUESSR_SEEDS = {};
+            window.MAPGUESSR_SEEDS[mapKey] = data;
+            callback();
+        })
+        .catch(function () {
+            $('game-screen').style.display = 'none';
+            $('error-screen').style.display = '';
+            $('error-message').textContent = 'マップデータの読み込みに失敗しました。ページを再読み込みしてください。';
+            $('btn-error-reload').style.display = '';
+        });
 }
 
 // ============================================================
@@ -340,22 +376,38 @@ function updateStatus() {
 }
 
 // ============================================================
-// ランダムストリートビュー取得
+// ランダムストリートビュー取得（シードポイント + ランダムオフセット方式）
 // ============================================================
 function findRandomStreetView(attempt) {
-    if (attempt >= 20) {
-        $('game-screen').style.display = 'none';
-        $('error-screen').style.display = '';
+    // ---- 調整可能な定数 ----
+    var MAX_ATTEMPTS  = 20;    // 最大試行回数
+    var OFFSET_DEG    = 0.3;   // シードから散らす最大幅（度）～約 33 km
+    var SEARCH_RADIUS = 5000;  // getPanorama の検索半径（m）
+    // ------------------------
+
+    if (attempt >= MAX_ATTEMPTS) {
+        showStreetViewError();
         return;
     }
 
-    var lat = 24 + Math.random() * (46 - 24);
-    var lng = 123 + Math.random() * (146 - 123);
+    var mapData = window.MAPGUESSR_SEEDS && window.MAPGUESSR_SEEDS[currentMapKey];
+    if (!mapData || !mapData.seeds || mapData.seeds.length === 0) {
+        $('game-screen').style.display = 'none';
+        $('error-screen').style.display = '';
+        $('error-message').textContent = 'マップデータが読み込まれていません。ページを再読み込みしてください。';
+        $('btn-error-reload').style.display = '';
+        return;
+    }
+
+    var seeds = mapData.seeds;
+    var seed = seeds[Math.floor(Math.random() * seeds.length)];
+    var lat = seed.lat + (Math.random() * 2 - 1) * OFFSET_DEG;
+    var lng = seed.lng + (Math.random() * 2 - 1) * OFFSET_DEG;
     var latLng = new google.maps.LatLng(lat, lng);
 
     var sv = new google.maps.StreetViewService();
     sv.getPanorama(
-        { location: latLng, radius: 3000, source: google.maps.StreetViewSource.OUTDOOR },
+        { location: latLng, radius: SEARCH_RADIUS, source: google.maps.StreetViewSource.OUTDOOR },
         function (data, status) {
             if (status === google.maps.StreetViewStatus.OK) {
                 answerLatLng = data.location.latLng;
@@ -376,6 +428,30 @@ function findRandomStreetView(attempt) {
             }
         }
     );
+}
+
+function showStreetViewError() {
+    clearInterval(roundTimerInterval);
+    $('game-screen').style.display = 'none';
+    $('error-screen').style.display = '';
+    $('error-message').textContent = 'ストリートビューが見つかりませんでした。再試行するか、タイトルに戻ってください。';
+    $('btn-retry-round').style.display = '';
+    $('btn-error-to-title').style.display = '';
+}
+
+function retryCurrentRound() {
+    $('btn-retry-round').style.display = 'none';
+    $('btn-error-to-title').style.display = 'none';
+    $('error-screen').style.display = 'none';
+    $('game-screen').style.display = '';
+    // タイマーリセット
+    $('timer-info').textContent = '00:00';
+    roundStartTime = Date.now();
+    roundTimerInterval = setInterval(function () {
+        var elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
+        $('timer-info').textContent = formatTime(elapsed);
+    }, 1000);
+    findRandomStreetView(0);
 }
 
 // ============================================================
@@ -831,8 +907,8 @@ function resetGame() {
             $('game-screen').style.display = 'none';
             $('error-screen').style.display = '';
             $('error-message').textContent =
-                'Google Maps API の読み込みに失敗しました。APIキーを確認してください。' +
-                'ページをリロードすると再入力できます。';
+                'Google Maps API の読み込みに失敗しました。APIキーを確認して、ページを再読み込みしてください。';
+            $('btn-error-reload').style.display = '';
         };
         document.head.appendChild(script);
     }
