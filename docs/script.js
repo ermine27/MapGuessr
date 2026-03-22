@@ -53,6 +53,7 @@ function formatDistance(km) {
 
 // ---- Google Maps コールバック（グローバルに公開が必要） ----
 function initGame() {
+    setupKeyboardShortcuts();
     setupRoundSelect();
 }
 
@@ -445,6 +446,41 @@ function onReturnToTitle() {
     $('btn-modal-cancel').onclick = function () {
         overlay.style.display = 'none';
     };
+}
+
+// ============================================================
+// キーボードショートカット
+// ============================================================
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', function (e) {
+        if ($('game-screen').style.display === 'none') return;
+        var resultVisible = $('result-panel').style.display !== 'none';
+        switch (e.code) {
+            case 'Space':
+                if (e.target && e.target.tagName === 'BUTTON') break;
+                e.preventDefault();
+                if (resultVisible) {
+                    $('btn-next').click();
+                } else {
+                    if (!$('btn-guess').disabled) $('btn-guess').click();
+                }
+                break;
+            case 'KeyZ':
+                if (!resultVisible && allowMove) onMoveBack();
+                break;
+            case 'KeyC':
+                if (!resultVisible && allowMove) onCheckpoint();
+                break;
+            case 'KeyR':
+                if (!resultVisible && allowMove) onReturnToStart();
+                break;
+            case 'KeyN':
+                if (!resultVisible && guessMap && guessMap.setHeading) {
+                    guessMap.setHeading(0);
+                }
+                break;
+        }
+    });
 }
 
 // ============================================================
