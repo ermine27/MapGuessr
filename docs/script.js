@@ -108,9 +108,10 @@ function setupRoundSelect() {
         location.reload();
     };
 
-    // ラウンド時間スライダーの初期化
+    // ラウンド時間スライダーの初期化（前回値を復元）
     var slider = $('time-limit-slider');
     if (slider) {
+        slider.value = roundTimeLimit / 10;
         updateTimeLimitLabel();
         slider.oninput = updateTimeLimitLabel;
     }
