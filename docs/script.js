@@ -33,6 +33,11 @@ var startPanoData = null;        // ラウンド開始時の { pano, pov }
 var checkpointData = null;       // チェックポイント { pano, pov } または null
 var northRotateAnimId = null;    // 北向きアニメーション用 rAF ID
 
+// 制限時間モード
+var roundTimeLimit = 0;          // 0 = 制限なし、それ以外は秒数
+var timeWarningActive = false;   // 残り10秒以下の警告フラグ
+var flashInterval = null;        // 警告点滅用インターバル
+
 // ---- 北向きアニメーション速度 ----
 var NORTH_ROTATE_SPEED = 540; // degrees/second（大きくすると速く、小さくすると遅くなります）
 
@@ -51,6 +56,22 @@ function formatTime(totalSec) {
     var m = Math.floor(totalSec / 60);
     var s = totalSec % 60;
     return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function formatTimeLimitLabel(val) {
+    if (val === 0) return '制限なし';
+    var totalSec = val * 10;
+    var m = Math.floor(totalSec / 60);
+    var s = totalSec % 60;
+    if (m === 0) return s + '秒';
+    if (s === 0) return m + '分';
+    return m + '分' + s + '秒';
+}
+
+function updateTimeLimitLabel() {
+    var slider = $('time-limit-slider');
+    var label = $('time-limit-label');
+    if (slider && label) label.textContent = formatTimeLimitLabel(parseInt(slider.value, 10));
 }
 
 function formatDistance(km) {
@@ -87,6 +108,13 @@ function setupRoundSelect() {
         location.reload();
     };
 
+    // ラウンド時間スライダーの初期化
+    var slider = $('time-limit-slider');
+    if (slider) {
+        updateTimeLimitLabel();
+        slider.oninput = updateTimeLimitLabel;
+    }
+
     document.querySelectorAll('.round-btn[data-rounds]').forEach(function (btn) {
         btn.addEventListener('click', function handler() {
             btn.removeEventListener('click', handler);
@@ -110,6 +138,10 @@ function startGame() {
 
     $('round-select-screen').style.display = 'none';
     $('game-screen').style.display = '';
+
+    // 制限時間の読み込み
+    var sliderVal = parseInt(($('time-limit-slider') || {}).value || '0', 10);
+    roundTimeLimit = isNaN(sliderVal) ? 0 : sliderVal * 10;
 
     panorama = new google.maps.StreetViewPanorama($('street-view'), {
         addressControl: false,
@@ -360,12 +392,7 @@ function nextRound() {
 
     // タイマーリセット
     clearInterval(roundTimerInterval);
-    $('timer-info').textContent = '00:00';
-    roundStartTime = Date.now();
-    roundTimerInterval = setInterval(function () {
-        var elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
-        $('timer-info').textContent = formatTime(elapsed);
-    }, 1000);
+    startRoundTimer();
 
     findRandomStreetView(0);
 }
@@ -375,13 +402,45 @@ function updateStatus() {
     $('total-score-info').textContent = 'Score: ' + totalScore;
 }
 
+function startRoundTimer() {
+    stopTimeWarning();
+    roundStartTime = Date.now();
+    if (roundTimeLimit > 0) {
+        $('timer-info').style.display = 'none';
+        $('countdown-bar').style.display = '';
+        var cd = $('countdown-timer');
+        cd.textContent = formatTime(roundTimeLimit);
+        cd.classList.remove('warning');
+        roundTimerInterval = setInterval(function () {
+            var elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
+            var remaining = roundTimeLimit - elapsed;
+            if (remaining <= 0) {
+                clearInterval(roundTimerInterval);
+                roundTimerInterval = null;
+                onTimeout();
+                return;
+            }
+            $('countdown-timer').textContent = formatTime(remaining);
+            if (remaining <= 10) startTimeWarning();
+        }, 250);
+    } else {
+        $('timer-info').style.display = '';
+        $('countdown-bar').style.display = 'none';
+        $('timer-info').textContent = '00:00';
+        roundTimerInterval = setInterval(function () {
+            var elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
+            $('timer-info').textContent = formatTime(elapsed);
+        }, 1000);
+    }
+}
+
 // ============================================================
 // ランダムストリートビュー取得（シードポイント + ランダムオフセット方式）
 // ============================================================
 function findRandomStreetView(attempt) {
     // ---- 調整可能な定数 ----
-    var MAX_ATTEMPTS  = 20;    // 最大試行回数
-    var OFFSET_DEG    = 0.3;   // シードから散らす最大幅（度）～約 33 km
+    var MAX_ATTEMPTS = 20;    // 最大試行回数
+    var OFFSET_DEG = 0.3;   // シードから散らす最大幅（度）～約 33 km
     var SEARCH_RADIUS = 5000;  // getPanorama の検索半径（m）
     // ------------------------
 
@@ -432,6 +491,7 @@ function findRandomStreetView(attempt) {
 
 function showStreetViewError() {
     clearInterval(roundTimerInterval);
+    stopTimeWarning();
     $('game-screen').style.display = 'none';
     $('error-screen').style.display = '';
     $('error-message').textContent = 'ストリートビューが見つかりませんでした。再試行するか、タイトルに戻ってください。';
@@ -445,13 +505,68 @@ function retryCurrentRound() {
     $('error-screen').style.display = 'none';
     $('game-screen').style.display = '';
     // タイマーリセット
-    $('timer-info').textContent = '00:00';
-    roundStartTime = Date.now();
-    roundTimerInterval = setInterval(function () {
-        var elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
-        $('timer-info').textContent = formatTime(elapsed);
-    }, 1000);
+    clearInterval(roundTimerInterval);
+    startRoundTimer();
     findRandomStreetView(0);
+}
+
+// ============================================================
+// 制限時間ウォーニング・タイムアウト処理
+// ============================================================
+function startTimeWarning() {
+    if (timeWarningActive) return;
+    timeWarningActive = true;
+    var cd = $('countdown-timer');
+    if (cd) cd.classList.add('warning');
+    var overlay = $('time-warning-overlay');
+    if (overlay) {
+        overlay.style.display = '';
+        flashInterval = setInterval(function () {
+            overlay.classList.toggle('flash-on');
+        }, 500);
+    }
+}
+
+function stopTimeWarning() {
+    timeWarningActive = false;
+    if (flashInterval) { clearInterval(flashInterval); flashInterval = null; }
+    var cd = $('countdown-timer');
+    if (cd) cd.classList.remove('warning');
+    var overlay = $('time-warning-overlay');
+    if (overlay) { overlay.style.display = 'none'; overlay.classList.remove('flash-on'); }
+}
+
+function onTimeout() {
+    if ($('result-panel').style.display !== 'none') return;
+    stopTimeWarning();
+    clearInterval(roundTimerInterval);
+    roundTimerInterval = null;
+    var cd = $('countdown-timer');
+    if (cd) cd.textContent = '00:00';
+    $('btn-guess').disabled = true;
+    var roundTime = roundTimeLimit;
+    if (guessMarker && answerLatLng) {
+        // ピンあり: ピン位置で採点
+        roundTimes.push(roundTime);
+        var guessLatLng = guessMarker.getPosition();
+        var distanceM = google.maps.geometry.spherical.computeDistanceBetween(answerLatLng, guessLatLng);
+        var distanceKm = distanceM / 1000;
+        var score = Math.round(5000 * Math.exp(-distanceKm / 2000));
+        totalScore += score;
+        distances.push(distanceKm);
+        scores.push(score);
+        guessPositions.push(guessLatLng);
+        answerPositions.push(answerLatLng);
+        showResult(distanceKm, score, roundTime, false);
+    } else if (answerLatLng) {
+        // ピンなし: 0点
+        roundTimes.push(roundTime);
+        distances.push(null);
+        scores.push(0);
+        guessPositions.push(null);
+        answerPositions.push(answerLatLng);
+        showResult(null, 0, roundTime, true);
+    }
 }
 
 // ============================================================
@@ -613,6 +728,7 @@ function onGuess() {
 
     // タイマー停止・記録
     clearInterval(roundTimerInterval);
+    stopTimeWarning();
     var roundTime = Math.floor((Date.now() - roundStartTime) / 1000);
     roundTimes.push(roundTime);
 
@@ -633,7 +749,7 @@ function onGuess() {
 // ============================================================
 // リザルト表示
 // ============================================================
-function showResult(distanceKm, score, roundTime) {
+function showResult(distanceKm, score, roundTime, isTimeout) {
     // 地図を最大サイズに拡大・固定
     mapLocked = true;
     sizeStage = 2;
@@ -659,20 +775,26 @@ function showResult(distanceKm, score, roundTime) {
         window.open(streetViewUrl, '_blank');
     });
 
-    resultLine = new google.maps.Polyline({
-        path: [guessMarker.getPosition(), answerLatLng],
-        map: guessMap,
-        strokeColor: '#e94560',
-        strokeWeight: 3,
-        strokeOpacity: 0.8
-    });
+    resultLine = null;
+    if (!isTimeout && guessMarker) {
+        resultLine = new google.maps.Polyline({
+            path: [guessMarker.getPosition(), answerLatLng],
+            map: guessMap,
+            strokeColor: '#e94560',
+            strokeWeight: 3,
+            strokeOpacity: 0.8
+        });
 
-    var bounds = new google.maps.LatLngBounds();
-    bounds.extend(guessMarker.getPosition());
-    bounds.extend(answerLatLng);
-    guessMap.fitBounds(bounds, 40);
+        var bounds = new google.maps.LatLngBounds();
+        bounds.extend(guessMarker.getPosition());
+        bounds.extend(answerLatLng);
+        guessMap.fitBounds(bounds, 40);
+    } else {
+        guessMap.setCenter(answerLatLng);
+        guessMap.setZoom(8);
+    }
 
-    $('result-distance').textContent = '距離: ' + formatDistance(distanceKm);
+    $('result-distance').textContent = isTimeout ? 'タイムオーバー' : '距離: ' + formatDistance(distanceKm);
     $('result-score').textContent = 'スコア: ' + score;
     $('result-total').textContent = '累計スコア: ' + totalScore;
     $('result-time').textContent = '経過時間: ' + formatTime(roundTime);
@@ -705,14 +827,16 @@ function showEndScreen() {
     $('result-panel').style.display = 'none';
     clearInterval(roundTimerInterval);
 
-    var avgDist = distances.reduce(function (a, b) { return a + b; }, 0) / distances.length;
+    var validDists = distances.filter(function (d) { return d !== null; });
+    var avgDist = validDists.length > 0 ? validDists.reduce(function (a, b) { return a + b; }, 0) / validDists.length : 0;
 
     $('end-total-score').textContent = '合計スコア: ' + totalScore + ' / ' + (totalRounds * 5000);
     $('end-avg-distance').textContent = '平均距離: ' + avgDist.toFixed(1) + ' km';
 
     var html = '<table class="round-table"><thead><tr><th>Round</th><th>得点</th><th>距離</th><th>時間</th></tr></thead><tbody>';
     for (var i = 0; i < scores.length; i++) {
-        html += '<tr><td>' + (i + 1) + '</td><td>' + scores[i] + '</td><td>' + formatDistance(distances[i]) + '</td><td>' + formatTime(roundTimes[i]) + '</td></tr>';
+        var distStr = distances[i] === null ? 'タイムオーバー' : formatDistance(distances[i]);
+        html += '<tr><td>' + (i + 1) + '</td><td>' + scores[i] + '</td><td>' + distStr + '</td><td>' + formatTime(roundTimes[i]) + '</td></tr>';
     }
     html += '</tbody></table>';
     $('round-results-table').innerHTML = html;
@@ -791,34 +915,37 @@ function initEndMap() {
             window.open(streetViewUrl, '_blank');
         });
 
-        // 推測マーカー: シンプルなドット
-        var guessMarkerEnd = new google.maps.Marker({
-            position: guessPos,
-            map: endMap,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 8,
-                fillColor: '#e94560',
-                fillOpacity: 1,
-                strokeColor: '#fff',
-                strokeWeight: 1.5
-            },
-            title: 'Round ' + roundNum + ' 推測'
-        });
-        endMapMarkers.push(guessMarkerEnd);
+        // 推測マーカー・線（タイムアウトでピンなしの場合はskip）
+        if (guessPos) {
+            var guessMarkerEnd = new google.maps.Marker({
+                position: guessPos,
+                map: endMap,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 8,
+                    fillColor: '#e94560',
+                    fillOpacity: 1,
+                    strokeColor: '#fff',
+                    strokeWeight: 1.5
+                },
+                title: 'Round ' + roundNum + ' 推測'
+            });
+            endMapMarkers.push(guessMarkerEnd);
 
-        // 線
-        var line = new google.maps.Polyline({
-            path: [guessPos, ansPos],
-            map: endMap,
-            strokeColor: '#e94560',
-            strokeWeight: 2,
-            strokeOpacity: 0.6
-        });
-        endMapLines.push(line);
+            // 線
+            var line = new google.maps.Polyline({
+                path: [guessPos, ansPos],
+                map: endMap,
+                strokeColor: '#e94560',
+                strokeWeight: 2,
+                strokeOpacity: 0.6
+            });
+            endMapLines.push(line);
+
+            bounds.extend(guessPos);
+        }
 
         bounds.extend(ansPos);
-        bounds.extend(guessPos);
     }
 
     endMap.fitBounds(bounds, { top: 30, right: 30, bottom: 30, left: 30 });
@@ -839,6 +966,9 @@ function resetGame() {
     sizeStage = 0;
     clearInterval(roundTimerInterval);
     roundTimerInterval = null;
+    stopTimeWarning();
+    $('countdown-bar').style.display = 'none';
+    $('timer-info').style.display = '';
     if (northRotateAnimId) { cancelAnimationFrame(northRotateAnimId); northRotateAnimId = null; }
     moveHistory = [];
     currentPanoId = null;

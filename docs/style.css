@@ -560,3 +560,93 @@ body {
 #btn-change-key:hover {
     color: #fff;
 }
+
+/* ================================
+   Round Time スライダー
+   ================================ */
+.time-limit-selector {
+    margin-bottom: 1.5rem;
+}
+
+.selector-label {
+    font-size: 1rem !important;
+    color: #aaa !important;
+    margin-bottom: 0.4rem !important;
+}
+
+.time-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+}
+
+.slider-edge-label {
+    font-size: 0.8rem;
+    color: #888;
+    white-space: nowrap;
+    min-width: 44px;
+}
+
+.slider-edge-label:last-child {
+    text-align: right;
+}
+
+#time-limit-slider {
+    width: 240px;
+    max-width: 60vw;
+    accent-color: #e94560;
+    cursor: pointer;
+}
+
+#time-limit-label {
+    display: block;
+    margin-top: 6px;
+    font-size: 1.15rem;
+    font-weight: bold;
+    color: #fff;
+}
+
+/* ================================
+   カウントダウンタイマー
+   ================================ */
+#countdown-bar {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 101;
+    background: rgba(0, 0, 0, 0.65);
+    border-radius: 8px;
+    padding: 6px 22px;
+    pointer-events: none;
+    user-select: none;
+}
+
+#countdown-timer {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #fff;
+    letter-spacing: 0.08em;
+}
+
+#countdown-timer.warning {
+    color: #e94560;
+}
+
+/* ================================
+   時間警告フラッシュ（外枠点滅）
+   ================================ */
+#time-warning-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    border: 6px solid #e94560;
+    opacity: 0;
+    transition: opacity 0.05s;
+}
+
+#time-warning-overlay.flash-on {
+    opacity: 1;
+}

@@ -21,6 +21,18 @@
         <div class="select-container">
             <h1>MapGuessr</h1>
             <p>ラウンド数を選んでください</p>
+
+            <!-- Round Time スライダー -->
+            <div class="time-limit-selector">
+                <p class="selector-label">Round Time</p>
+                <div class="time-slider-row">
+                    <span class="slider-edge-label">制限なし</span>
+                    <input type="range" id="time-limit-slider" min="0" max="60" step="1" value="0">
+                    <span class="slider-edge-label">10分</span>
+                </div>
+                <span id="time-limit-label">制限なし</span>
+            </div>
+
             <div class="round-buttons">
                 <button class="round-btn" data-rounds="1">1</button>
                 <button class="round-btn" data-rounds="5">5</button>
@@ -43,6 +55,14 @@
             <span id="total-score-info">Score: 0</span>
             <span id="timer-info">0s</span>
         </div>
+
+        <!-- カウントダウンタイマー（制限時間あり時に表示） -->
+        <div id="countdown-bar" style="display:none;">
+            <span id="countdown-timer">00:00</span>
+        </div>
+
+        <!-- 時間警告フラッシュ（残り10秒以下で点滅） -->
+        <div id="time-warning-overlay" style="display:none;"></div>
 
         <!-- コンパス -->
         <div id="compass" style="display:none;">
