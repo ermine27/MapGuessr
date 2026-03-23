@@ -520,10 +520,8 @@ function startTimeWarning() {
     if (cd) cd.classList.add('warning');
     var overlay = $('time-warning-overlay');
     if (overlay) {
-        overlay.style.display = '';
-        flashInterval = setInterval(function () {
-            overlay.classList.toggle('flash-on');
-        }, 500);
+        overlay.style.display = 'block';
+        overlay.classList.add('warning-active');
     }
 }
 
@@ -533,7 +531,7 @@ function stopTimeWarning() {
     var cd = $('countdown-timer');
     if (cd) cd.classList.remove('warning');
     var overlay = $('time-warning-overlay');
-    if (overlay) { overlay.style.display = 'none'; overlay.classList.remove('flash-on'); }
+    if (overlay) { overlay.style.display = 'none'; overlay.classList.remove('warning-active'); }
 }
 
 function onTimeout() {
