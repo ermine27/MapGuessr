@@ -635,18 +635,37 @@ body {
 }
 
 /* ================================
-   時間警告フラッシュ（外枠点滅）
+   時間警告フラッシュ（外枠フェードアウト点滅）
    ================================ */
+@keyframes timeWarningPulse {
+    0% {
+        opacity: 1;
+    }
+
+    70% {
+        opacity: 0.15;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
 #time-warning-overlay {
     position: fixed;
     inset: 0;
     z-index: 9999;
     pointer-events: none;
-    border: 6px solid #e94560;
-    opacity: 0;
-    transition: opacity 0.05s;
+    display: none;
+    /* 内側ほど透明になる赤い縁（inset box-shadow を重ねて擬似グラデーション） */
+    box-shadow:
+        inset 0 0 8px 4px rgba(233, 69, 96, 0.85),
+        inset 0 0 16px 8px rgba(233, 69, 96, 0.65),
+        inset 0 0 28px 16px rgba(233, 69, 96, 0.40),
+        inset 0 0 40px 24px rgba(233, 69, 96, 0.20),
+        inset 0 0 56px 36px rgba(233, 69, 96, 0.00);
 }
 
-#time-warning-overlay.flash-on {
-    opacity: 1;
+#time-warning-overlay.warning-active {
+    animation: timeWarningPulse 1s ease-out infinite;
 }
