@@ -913,18 +913,26 @@ function showEndScreen() {
 
     var validDists = distances.filter(function (d) { return d !== null; });
     var avgDist = validDists.length > 0 ? validDists.reduce(function (a, b) { return a + b; }, 0) / validDists.length : 0;
+    var totalTravel = travelDistances.reduce(function (a, b) { return a + b; }, 0);
+    var totalTime = roundTimes.reduce(function (a, b) { return a + b; }, 0);
+    var totalDist = validDists.reduce(function (a, b) { return a + b; }, 0);
+
+    // ゲームモード・制限時間
+    var modeLabel = { move: 'Move', nomove: 'No Move', nmpz: 'NMPZ' }[gameMode] || gameMode;
+    var timeLabel = roundTimeLimit > 0 ? formatTime(roundTimeLimit) : '制限なし';
+    $('end-game-info').textContent = modeLabel + '  ·  Round Time: ' + timeLabel;
 
     $('end-total-score').textContent = '合計スコア: ' + totalScore + ' / ' + (totalRounds * 5000);
-    $('end-avg-distance').textContent = '平均距離: ' + avgDist.toFixed(1) + ' km';
-    var totalTravel = travelDistances.reduce(function (a, b) { return a + b; }, 0);
-    $('end-total-travel').textContent = '合計移動距離: ' + formatTravelDist(totalTravel);
+    $('end-avg-distance').textContent = '平均誤差: ' + avgDist.toFixed(1) + ' km';
 
     var html = '<table class="round-table"><thead><tr><th>Round</th><th>得点</th><th>距離</th><th>時間</th><th>移動距離</th></tr></thead><tbody>';
     for (var i = 0; i < scores.length; i++) {
         var distStr = distances[i] === null ? 'タイムオーバー' : formatDistance(distances[i]);
         var travelStr = formatTravelDist(travelDistances[i] || 0);
-        html += '<tr><td>' + (i + 1) + '</td><td>' + scores[i] + '</td><td>' + distStr + '</td><td>' + formatTime(roundTimes[i]) + '</td><td>' + travelStr + '</td></tr>';
+        html += '<tr data-round="' + i + '"><td>' + (i + 1) + '</td><td>' + scores[i] + '</td><td>' + distStr + '</td><td>' + formatTime(roundTimes[i]) + '</td><td>' + travelStr + '</td></tr>';
     }
+    var totalDistStr = validDists.length > 0 ? formatDistance(totalDist) : '-';
+    html += '<tr class="round-table-total"><td>合計</td><td>' + totalScore + '</td><td>' + totalDistStr + '</td><td>' + formatTime(totalTime) + '</td><td>' + formatTravelDist(totalTravel) + '</td></tr>';
     html += '</tbody></table>';
     $('round-results-table').innerHTML = html;
 
@@ -932,6 +940,9 @@ function showEndScreen() {
 
     // 結果マップを初期化・描画
     initEndMap();
+
+    // テーブル行ホバーでマーカーをハイライト
+    setupTableRowHover();
 
     $('btn-restart').addEventListener('click', function handler() {
         $('btn-restart').removeEventListener('click', handler);
@@ -942,6 +953,9 @@ function showEndScreen() {
 var endMap = null;
 var endMapMarkers = [];
 var endMapLines = [];
+var endMapPairs = []; // [{ans, guess, line}, ...] ラウンドごとのペア
+
+var ANS_MARKER_COLOR = '#888888'; // 正解マーカーの色（変更時はここを修正）
 
 function initEndMap() {
     var container = $('end-map');
@@ -966,74 +980,132 @@ function initEndMap() {
     endMapLines.forEach(function (l) { l.setMap(null); });
     endMapMarkers = [];
     endMapLines = [];
+    endMapPairs = [];
 
     var bounds = new google.maps.LatLngBounds();
 
     for (var i = 0; i < answerPositions.length; i++) {
-        var roundNum = i + 1;
-        var ansPos = answerPositions[i];
-        var guessPos = guessPositions[i];
+        (function (idx) {
+            var roundNum = idx + 1;
+            var ansPos = answerPositions[idx];
+            var guessPos = guessPositions[idx];
 
-        // 正解マーカー: 数字付きラベル
-        var ansMarker = new google.maps.Marker({
-            position: ansPos,
-            map: endMap,
-            label: {
-                text: String(roundNum),
-                color: '#fff',
-                fontSize: '12px',
-                fontWeight: 'bold'
-            },
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 14,
-                fillColor: '#00c853',
-                fillOpacity: 1,
-                strokeColor: '#fff',
-                strokeWeight: 2
-            },
-            title: 'Round ' + roundNum + ' 正解'
-        });
-        endMapMarkers.push(ansMarker);
-
-        // 正解ピンをクリックでストリートビューを新タブで開く
-        ansMarker.addListener('click', function () {
-            var streetViewUrl = 'https://maps.google.com/?cbll=' + ansPos.lat() + ',' + ansPos.lng() + '&layer=c';
-            window.open(streetViewUrl, '_blank');
-        });
-
-        // 推測マーカー・線（タイムアウトでピンなしの場合はskip）
-        if (guessPos) {
-            var guessMarkerEnd = new google.maps.Marker({
-                position: guessPos,
+            // 正解マーカー: 数字付きラベル
+            var ansMarker = new google.maps.Marker({
+                position: ansPos,
                 map: endMap,
-                icon: {
-                    url: 'pin.svg',
-                    scaledSize: new google.maps.Size(28, 28),
-                    anchor: new google.maps.Point(14, 26)
+                label: {
+                    text: String(roundNum),
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
                 },
-                title: 'Round ' + roundNum + ' 推測'
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 14,
+                    fillColor: ANS_MARKER_COLOR,
+                    fillOpacity: 1,
+                    strokeColor: '#fff',
+                    strokeWeight: 2
+                },
+                title: 'Round ' + roundNum + ' 正解'
             });
-            endMapMarkers.push(guessMarkerEnd);
+            endMapMarkers.push(ansMarker);
 
-            // 線
-            var line = new google.maps.Polyline({
-                path: [guessPos, ansPos],
-                map: endMap,
-                strokeColor: '#e94560',
-                strokeWeight: 2,
-                strokeOpacity: 0.6
+            // 正解ピンをクリックでストリートビューを新タブで開く
+            ansMarker.addListener('click', function () {
+                var streetViewUrl = 'https://maps.google.com/?cbll=' + ansPos.lat() + ',' + ansPos.lng() + '&layer=c';
+                window.open(streetViewUrl, '_blank');
             });
-            endMapLines.push(line);
 
-            bounds.extend(guessPos);
-        }
+            var pair = { ans: ansMarker, guess: null, line: null };
 
-        bounds.extend(ansPos);
+            // 推測マーカー・線（タイムアウトでピンなしの場合はskip）
+            if (guessPos) {
+                var guessMarkerEnd = new google.maps.Marker({
+                    position: guessPos,
+                    map: endMap,
+                    icon: {
+                        url: 'pin.svg',
+                        scaledSize: new google.maps.Size(28, 28),
+                        anchor: new google.maps.Point(14, 26)
+                    },
+                    title: 'Round ' + roundNum + ' 推測'
+                });
+                endMapMarkers.push(guessMarkerEnd);
+
+                var line = new google.maps.Polyline({
+                    path: [guessPos, ansPos],
+                    map: endMap,
+                    strokeColor: '#e94560',
+                    strokeWeight: 2,
+                    strokeOpacity: 0.6
+                });
+                endMapLines.push(line);
+                bounds.extend(guessPos);
+
+                pair.guess = guessMarkerEnd;
+                pair.line = line;
+
+                guessMarkerEnd.addListener('mouseover', function () { setEndRoundHighlight(idx, true); });
+                guessMarkerEnd.addListener('mouseout', function () { setEndRoundHighlight(idx, false); });
+            }
+
+            ansMarker.addListener('mouseover', function () { setEndRoundHighlight(idx, true); });
+            ansMarker.addListener('mouseout', function () { setEndRoundHighlight(idx, false); });
+
+            endMapPairs.push(pair);
+            bounds.extend(ansPos);
+        })(i);
     }
 
     endMap.fitBounds(bounds, { top: 30, right: 30, bottom: 30, left: 30 });
     google.maps.event.trigger(endMap, 'resize');
+}
+
+function setEndRoundHighlight(idx, on) {
+    var pair = endMapPairs[idx];
+    if (!pair) return;
+
+    pair.ans.setIcon({
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: on ? 17 : 14,
+        fillColor: ANS_MARKER_COLOR,
+        fillOpacity: 1,
+        strokeColor: '#fff',
+        strokeWeight: on ? 5 : 2
+    });
+    if (pair.guess) {
+        pair.guess.setIcon(on ? {
+            url: 'pin.svg',
+            scaledSize: new google.maps.Size(38, 38),
+            anchor: new google.maps.Point(19, 35)
+        } : {
+            url: 'pin.svg',
+            scaledSize: new google.maps.Size(28, 28),
+            anchor: new google.maps.Point(14, 26)
+        });
+        pair.guess.setZIndex(on ? 10 : 0);
+    }
+    if (pair.line) {
+        pair.line.setOptions({ strokeWeight: on ? 4 : 2, strokeOpacity: on ? 1.0 : 0.6 });
+    }
+    var tableEl = $('round-results-table');
+    if (tableEl) {
+        tableEl.querySelectorAll('tr[data-round="' + idx + '"]').forEach(function (row) {
+            row.classList.toggle('highlighted', on);
+        });
+    }
+}
+
+function setupTableRowHover() {
+    var tableEl = $('round-results-table');
+    if (!tableEl) return;
+    tableEl.querySelectorAll('tr[data-round]').forEach(function (row) {
+        var idx = parseInt(row.dataset.round, 10);
+        row.addEventListener('mouseenter', function () { setEndRoundHighlight(idx, true); });
+        row.addEventListener('mouseleave', function () { setEndRoundHighlight(idx, false); });
+    });
 }
 
 function resetGame() {
@@ -1075,6 +1147,7 @@ function resetGame() {
     if (btnPin) btnPin.classList.remove('active');
     setMinimapSize();
 
+    endMapPairs = [];
     $('end-screen').style.display = 'none';
     setupRoundSelect();
 }
