@@ -41,6 +41,12 @@ var flashInterval = null;        // 警告点滅用インターバル
 // ゲームモード
 var gameMode = 'move'; // 'move', 'nomove', 'nmpz'
 
+// 移動距離
+var travelDistances = [];     // ラウンドごとの移動距離（m）
+var currentTravelDist = 0;    // 現ラウンドの累積移動距離（m）
+var currentPanoLatLng = null; // 直前のパノラマのLatLng（距離計算用）
+var pendingTravelUpdate = false; // 次のposition_changedでの距離計算を待機中フラグ
+
 // ---- 北向きアニメーション速度 ----
 var NORTH_ROTATE_SPEED = 540; // degrees/second（大きくすると速く、小さくすると遅くなります）
 
@@ -82,6 +88,12 @@ function formatDistance(km) {
         return Math.round(km * 1000) + ' m';
     }
     return km.toFixed(1) + ' km';
+}
+
+function formatTravelDist(m) {
+    if (m < 1000) return Math.round(m) + ' m';
+    if (m < 1000000) return Math.round(m).toLocaleString() + ' m';
+    return (m / 1000).toFixed(1) + ' km';
 }
 
 // ---- Google Maps コールバック（グローバルに公開が必要） ----
@@ -149,6 +161,9 @@ function startGame() {
     roundTimes = [];
     guessPositions = [];
     answerPositions = [];
+    travelDistances = [];
+    currentTravelDist = 0;
+    currentPanoLatLng = null;
 
     $('round-select-screen').style.display = 'none';
     $('game-screen').style.display = '';
@@ -187,6 +202,7 @@ function startGame() {
         if (isProgrammaticPanoChange) {
             isProgrammaticPanoChange = false;
             currentPanoId = panorama.getPano();
+            pendingTravelUpdate = false;
             return;
         }
         if (currentPanoId !== null) {
@@ -194,6 +210,23 @@ function startGame() {
         }
         currentPanoId = panorama.getPano();
         updateMoveBackButton();
+        pendingTravelUpdate = true; // position_changed で距離を計算する
+    });
+
+    // pano_changed の後に発火し位置が確実に更新済みの position_changed で計算
+    panorama.addListener('position_changed', function () {
+        var newPos = panorama.getPosition();
+        if (!newPos) return;
+        if (pendingTravelUpdate) {
+            pendingTravelUpdate = false;
+            if (currentPanoLatLng) {
+                // var delta = google.maps.geometry.spherical.computeDistanceBetween(currentPanoLatLng, newPos);
+                // currentTravelDist += delta;
+                // console.log('[移動距離] +' + Math.round(delta) + ' m → 累計 ' + Math.round(currentTravelDist) + ' m');
+                currentTravelDist += google.maps.geometry.spherical.computeDistanceBetween(currentPanoLatLng, newPos);
+            }
+        }
+        currentPanoLatLng = newPos;
     });
 
     guessMap = new google.maps.Map($('guess-map'), {
@@ -407,6 +440,9 @@ function nextRound() {
     startPanoData = null;
     moveHistory = [];
     currentPanoId = null;
+    currentTravelDist = 0;
+    currentPanoLatLng = null;
+    pendingTravelUpdate = false;
     updateCheckpointButton();
     updateMoveBackButton();
 
@@ -496,6 +532,8 @@ function findRandomStreetView(attempt) {
                 checkpointData = null;
                 startPanoData = { pano: startPano, pov: startPov };
                 currentPanoId = startPano;
+                currentTravelDist = 0;
+                currentPanoLatLng = data.location.latLng;
                 isProgrammaticPanoChange = true;
                 panorama.setPano(startPano);
                 panorama.setPov(startPov);
@@ -575,6 +613,7 @@ function onTimeout() {
         scores.push(score);
         guessPositions.push(guessLatLng);
         answerPositions.push(answerLatLng);
+        travelDistances.push(currentTravelDist);
         showResult(distanceKm, score, roundTime, false);
     } else if (answerLatLng) {
         // ピンなし: 0点
@@ -583,6 +622,7 @@ function onTimeout() {
         scores.push(0);
         guessPositions.push(null);
         answerPositions.push(answerLatLng);
+        travelDistances.push(currentTravelDist);
         showResult(null, 0, roundTime, true);
     }
 }
@@ -779,6 +819,7 @@ function onGuess() {
     scores.push(score);
     guessPositions.push(guessLatLng);
     answerPositions.push(answerLatLng);
+    travelDistances.push(currentTravelDist);
 
     showResult(distanceKm, score, roundTime);
 }
@@ -835,6 +876,7 @@ function showResult(distanceKm, score, roundTime, isTimeout) {
     $('result-score').textContent = 'スコア: ' + score;
     $('result-total').textContent = '累計スコア: ' + totalScore;
     $('result-time').textContent = '経過時間: ' + formatTime(roundTime);
+    $('result-travel').textContent = '移動距離: ' + formatTravelDist(currentTravelDist);
 
     $('btn-next').textContent = currentRound >= totalRounds ? '結果を見る' : 'Next Round';
     $('result-panel').style.display = '';
@@ -869,11 +911,14 @@ function showEndScreen() {
 
     $('end-total-score').textContent = '合計スコア: ' + totalScore + ' / ' + (totalRounds * 5000);
     $('end-avg-distance').textContent = '平均距離: ' + avgDist.toFixed(1) + ' km';
+    var totalTravel = travelDistances.reduce(function (a, b) { return a + b; }, 0);
+    $('end-total-travel').textContent = '合計移動距離: ' + formatTravelDist(totalTravel);
 
-    var html = '<table class="round-table"><thead><tr><th>Round</th><th>得点</th><th>距離</th><th>時間</th></tr></thead><tbody>';
+    var html = '<table class="round-table"><thead><tr><th>Round</th><th>得点</th><th>距離</th><th>時間</th><th>移動距離</th></tr></thead><tbody>';
     for (var i = 0; i < scores.length; i++) {
         var distStr = distances[i] === null ? 'タイムオーバー' : formatDistance(distances[i]);
-        html += '<tr><td>' + (i + 1) + '</td><td>' + scores[i] + '</td><td>' + distStr + '</td><td>' + formatTime(roundTimes[i]) + '</td></tr>';
+        var travelStr = formatTravelDist(travelDistances[i] || 0);
+        html += '<tr><td>' + (i + 1) + '</td><td>' + scores[i] + '</td><td>' + distStr + '</td><td>' + formatTime(roundTimes[i]) + '</td><td>' + travelStr + '</td></tr>';
     }
     html += '</tbody></table>';
     $('round-results-table').innerHTML = html;
@@ -997,6 +1042,10 @@ function resetGame() {
     roundTimes = [];
     guessPositions = [];
     answerPositions = [];
+    travelDistances = [];
+    currentTravelDist = 0;
+    currentPanoLatLng = null;
+    pendingTravelUpdate = false;
     answerLatLng = null;
     mapLocked = false;
     isMapHovered = false;
