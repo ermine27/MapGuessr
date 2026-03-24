@@ -246,7 +246,12 @@ function startGame() {
         }
         guessMarker = new google.maps.Marker({
             position: e.latLng,
-            map: guessMap
+            map: guessMap,
+            icon: {
+                url: 'pin.svg',
+                scaledSize: new google.maps.Size(32, 32),
+                anchor: new google.maps.Point(16, 29)
+            }
         });
         $('btn-guess').disabled = false;
     });
@@ -1003,12 +1008,9 @@ function initEndMap() {
                 position: guessPos,
                 map: endMap,
                 icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 8,
-                    fillColor: '#e94560',
-                    fillOpacity: 1,
-                    strokeColor: '#fff',
-                    strokeWeight: 1.5
+                    url: 'pin.svg',
+                    scaledSize: new google.maps.Size(28, 28),
+                    anchor: new google.maps.Point(14, 26)
                 },
                 title: 'Round ' + roundNum + ' 推測'
             });
