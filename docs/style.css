@@ -473,7 +473,7 @@ body {
 #end-total-score {
     font-size: 2rem;
     font-weight: bold;
-    color: #e94560;
+    color: #4a9eff;
 }
 
 #end-avg-distance {
@@ -506,8 +506,8 @@ body {
 
 .round-table th {
     padding: 6px 14px;
-    border-bottom: 2px solid #e94560;
-    color: #e94560;
+    border-bottom: 2px solid #4a9eff;
+    color: #4a9eff;
     font-weight: bold;
     text-align: center;
 }
@@ -521,6 +521,33 @@ body {
 
 .round-table td:first-child {
     text-align: center;
+}
+
+.round-table-total td {
+    border-top: 2px solid rgba(255, 255, 255, 0.3);
+    border-bottom: none;
+    font-weight: bold;
+    color: #fff !important;
+}
+
+.round-table tr.highlighted td {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+#end-game-info {
+    font-size: 1rem !important;
+    color: #888 !important;
+    margin-bottom: 0.3rem !important;
+    letter-spacing: 0.05em;
+}
+
+#end-screen .round-btn {
+    border-color: #4a9eff;
+}
+
+#end-screen .round-btn:hover {
+    background: #4a9eff;
 }
 
 /* ================================
