@@ -22,6 +22,16 @@
             <h1>MapGuessr</h1>
             <p>ラウンド数を選んでください</p>
 
+            <!-- ゲームモード選択 -->
+            <div class="mode-selector">
+                <p class="selector-label">Game Mode</p>
+                <div class="mode-buttons">
+                    <button class="mode-btn active" data-mode="move">Move</button>
+                    <button class="mode-btn" data-mode="nomove">No Move</button>
+                    <button class="mode-btn" data-mode="nmpz">NMPZ</button>
+                </div>
+            </div>
+
             <!-- Round Time スライダー -->
             <div class="time-limit-selector">
                 <p class="selector-label">Round Time</p>
@@ -49,6 +59,9 @@
     <!-- メインゲーム画面 -->
     <div id="game-screen" style="display:none;">
         <div id="street-view"></div>
+
+        <!-- NMPZオーバーレイ（アングル変更・ズーム禁止用） -->
+        <div id="sv-nmpz-overlay" style="display:none;"></div>
 
         <div id="status-bar">
             <span id="round-info">Round 1 / 5</span>
@@ -87,7 +100,7 @@
         <!-- ストリートビュー操作コントロール（左下） -->
         <div id="sv-controls">
             <!-- Col1: ズームイン  /  Col2: 移動を戻す -->
-            <button id="btn-sv-zoom-in" class="sv-btn" title="ズームイン">
+            <button id="btn-sv-zoom-in" class="sv-btn sv-btn-pov" title="ズームイン">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -102,7 +115,7 @@
                 </svg>
             </button>
             <!-- Col1: ズームアウト  /  Col2: チェックポイント -->
-            <button id="btn-sv-zoom-out" class="sv-btn" title="ズームアウト">
+            <button id="btn-sv-zoom-out" class="sv-btn sv-btn-pov" title="ズームアウト">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                     <line x1="5" y1="12" x2="19" y2="12"></line>

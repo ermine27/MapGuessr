@@ -38,6 +38,9 @@ var roundTimeLimit = 0;          // 0 = 制限なし、それ以外は秒数
 var timeWarningActive = false;   // 残り10秒以下の警告フラグ
 var flashInterval = null;        // 警告点滅用インターバル
 
+// ゲームモード
+var gameMode = 'move'; // 'move', 'nomove', 'nmpz'
+
 // ---- 北向きアニメーション速度 ----
 var NORTH_ROTATE_SPEED = 540; // degrees/second（大きくすると速く、小さくすると遅くなります）
 
@@ -116,6 +119,16 @@ function setupRoundSelect() {
         slider.oninput = updateTimeLimitLabel;
     }
 
+    // ゲームモードボタンの初期化（前回値を復元）
+    document.querySelectorAll('.mode-btn').forEach(function (btn) {
+        btn.classList.toggle('active', btn.dataset.mode === gameMode);
+        btn.onclick = function () {
+            document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            gameMode = btn.dataset.mode;
+        };
+    });
+
     document.querySelectorAll('.round-btn[data-rounds]').forEach(function (btn) {
         btn.addEventListener('click', function handler() {
             btn.removeEventListener('click', handler);
@@ -144,6 +157,11 @@ function startGame() {
     var sliderVal = parseInt(($('time-limit-slider') || {}).value || '0', 10);
     roundTimeLimit = isNaN(sliderVal) ? 0 : sliderVal * 10;
 
+    // ゲームモードの適用
+    allowMove = (gameMode === 'move');
+    var nmpzOverlay = $('sv-nmpz-overlay');
+    if (nmpzOverlay) nmpzOverlay.style.display = (gameMode === 'nmpz') ? 'block' : 'none';
+
     panorama = new google.maps.StreetViewPanorama($('street-view'), {
         addressControl: false,
         showRoadLabels: false,
@@ -153,7 +171,8 @@ function startGame() {
         enableCloseButton: false,
         zoomControl: false,
         panControl: false,
-        linksControl: true
+        linksControl: (gameMode === 'move'),
+        clickToGo: (gameMode === 'move')
     });
 
     if (showCompass) {
@@ -590,10 +609,19 @@ function updateCheckpointButton() {
 }
 
 function updateNoMoveButtons() {
+    // No Move / NMPZ: 移動関連ボタン非表示
     var btns = document.querySelectorAll('.sv-btn-nomove');
     btns.forEach(function (btn) {
         btn.style.display = allowMove ? '' : 'none';
     });
+    // NMPZ: ズームボタンも非表示
+    var povBtns = document.querySelectorAll('.sv-btn-pov');
+    povBtns.forEach(function (btn) {
+        btn.style.display = (gameMode === 'nmpz') ? 'none' : '';
+    });
+    // No Move 時はグリッドを 1 列にして縦並びを維持
+    var svControls = $('sv-controls');
+    if (svControls) svControls.classList.toggle('one-col', !allowMove);
 }
 
 // ============================================================
@@ -686,8 +714,18 @@ function onReturnToTitle() {
 // キーボードショートカット
 // ============================================================
 function setupKeyboardShortcuts() {
+    var SV_MOVE_KEYS = {
+        ArrowUp: true, ArrowDown: true, ArrowLeft: true, ArrowRight: true,
+        KeyW: true, KeyA: true, KeyS: true, KeyD: true
+    };
     document.addEventListener('keydown', function (e) {
         if ($('game-screen').style.display === 'none') return;
+        // No Move / NMPZ 時は矢印・ WASD キーによる SV 移動を禁止
+        if (!allowMove && SV_MOVE_KEYS[e.code]) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
         var resultVisible = $('result-panel').style.display !== 'none';
         switch (e.code) {
             case 'Space':
@@ -709,7 +747,7 @@ function setupKeyboardShortcuts() {
                 if (!resultVisible && allowMove) onReturnToStart();
                 break;
             case 'KeyN':
-                if (!resultVisible && panorama) {
+                if (!resultVisible && panorama && gameMode !== 'nmpz') {
                     rotateToNorthAnimated();
                 }
                 break;
@@ -974,6 +1012,9 @@ function resetGame() {
     startPanoData = null;
     checkpointData = null;
     isProgrammaticPanoChange = false;
+
+    var nmpzOverlay = $('sv-nmpz-overlay');
+    if (nmpzOverlay) nmpzOverlay.style.display = 'none';
 
     if (guessMarker) { guessMarker.setMap(null); guessMarker = null; }
     if (resultMarker) { resultMarker.setMap(null); resultMarker = null; }

@@ -178,6 +178,10 @@ body {
     gap: 5px;
 }
 
+#sv-controls.one-col {
+    grid-template-columns: 40px;
+}
+
 .sv-btn {
     width: 40px;
     height: 40px;
@@ -559,6 +563,52 @@ body {
 
 #btn-change-key:hover {
     color: #fff;
+}
+
+/* ================================
+   ゲームモード選択
+   ================================ */
+.mode-selector {
+    margin-bottom: 1.5rem;
+}
+
+.mode-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.mode-btn {
+    padding: 8px 20px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    border: 2px solid rgba(255, 255, 255, 0.22);
+    background: transparent;
+    color: #aaa;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.mode-btn:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #fff;
+}
+
+.mode-btn.active {
+    border-color: #e94560;
+    background: #e94560;
+    color: #fff;
+}
+
+/* ================================
+   NMPZオーバーレイ（アングル変更・ズーム禁止）
+   ================================ */
+#sv-nmpz-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    cursor: default;
 }
 
 /* ================================
