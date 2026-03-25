@@ -47,6 +47,9 @@ var currentTravelDist = 0;    // 現ラウンドの累積移動距離（m）
 var currentPanoLatLng = null; // 直前のパノラマのLatLng（距離計算用）
 var pendingTravelUpdate = false; // 次のposition_changedでの距離計算を待機中フラグ
 
+// ---- 重複防止キュー ----
+var locationQueue = []; // ゲーム内重複防止用シャッフル済みキュー（cycle方式）
+
 // ---- 北向きアニメーション速度 ----
 var NORTH_ROTATE_SPEED = 540; // degrees/second（大きくすると速く、小さくすると遅くなります）
 
@@ -88,6 +91,15 @@ function formatDistance(km) {
         return Math.round(km * 1000) + ' m';
     }
     return km.toFixed(1) + ' km';
+}
+
+function shuffleArray(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
 }
 
 function formatTravelDist(m) {
@@ -164,6 +176,7 @@ function startGame() {
     travelDistances = [];
     currentTravelDist = 0;
     currentPanoLatLng = null;
+    locationQueue = [];
 
     $('round-select-screen').style.display = 'none';
     $('game-screen').style.display = '';
@@ -509,7 +522,11 @@ function findRandomStreetView() {
         return;
     }
 
-    var loc = locations[Math.floor(Math.random() * locations.length)];
+    // キューが空になったら再シャッフルして補充（cycle方式: 枯渇時は重複を許容して継続）
+    if (locationQueue.length === 0) {
+        locationQueue = shuffleArray(locations);
+    }
+    var loc = locationQueue.pop();
     answerLatLng = new google.maps.LatLng(loc.lat, loc.lng);
     var startPano = loc.panoId;
     var startPov = { heading: loc.heading || 0, pitch: loc.pitch || 0 };
@@ -1098,6 +1115,7 @@ function resetGame() {
     currentPanoLatLng = null;
     pendingTravelUpdate = false;
     answerLatLng = null;
+    locationQueue = [];
     mapLocked = false;
     isMapHovered = false;
     sizeStage = 0;
