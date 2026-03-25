@@ -142,7 +142,9 @@ body {
     top: 12px;
     left: 12px;
     display: flex;
-    gap: 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
     background: rgba(0, 0, 0, 0.65);
     color: #fff;
     padding: 8px 16px;
@@ -152,6 +154,22 @@ body {
     z-index: 100;
     pointer-events: none;
     user-select: none;
+}
+
+#status-bar-row {
+    display: flex;
+    gap: 20px;
+}
+
+#status-map-name {
+    font-size: 0.78rem;
+    color: #bbb;
+    font-weight: normal;
+    letter-spacing: 0.03em;
+}
+
+#status-map-name:empty {
+    display: none;
 }
 
 /* コンパス */
@@ -535,6 +553,13 @@ body {
     color: #fff;
 }
 
+#end-map-name {
+    font-size: 1.4rem !important;
+    font-weight: bold;
+    color: #fff !important;
+    margin-bottom: 0.2rem !important;
+}
+
 #end-game-info {
     font-size: 1rem !important;
     color: #888 !important;
@@ -745,4 +770,71 @@ body {
 
 #time-warning-overlay.warning-active {
     animation: timeWarningPulse 1s ease-out infinite;
+}
+
+/* ================================
+   マップ選択カード
+   ================================ */
+.map-selector {
+    margin-bottom: 1.5rem;
+}
+
+#map-card-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.map-card {
+    width: 180px;
+    padding: 12px 14px;
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s, background 0.2s;
+    color: #fff;
+}
+
+.map-card:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.map-card.selected {
+    border-color: #e94560;
+    background: rgba(233, 69, 96, 0.12);
+}
+
+.map-card-name {
+    font-size: 1rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.map-card-desc {
+    font-size: 0.78rem;
+    color: #aaa;
+    margin-bottom: 6px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.map-card-count {
+    font-size: 0.78rem;
+    color: #888;
+}
+
+.map-loading {
+    font-size: 0.9rem !important;
+    color: #888 !important;
+    margin-bottom: 0 !important;
 }

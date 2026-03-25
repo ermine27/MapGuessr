@@ -55,6 +55,8 @@ var NORTH_ROTATE_SPEED = 540; // degrees/second（大きくすると速く、小
 
 // ---- マップ設定 ----
 var currentMapKey = 'Japan-1000-locations'; // 使用するマップ（maps/ フォルダのファイル名と対応）
+var mapList = [];           // map-list.json から読み込んだマップ一覧
+var currentMapInfo = null;  // 選択中マップの情報（key, nameJa, scaleS 等）
 
 // ---- 表示設定 ----
 var showMapLabels = true; // true: 国名・地名等を表示、false: 非表示
@@ -108,6 +110,70 @@ function formatTravelDist(m) {
     return (m / 1000).toFixed(1) + ' km';
 }
 
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// ============================================================
+// マップリスト読み込み・選択
+// ============================================================
+function loadMapList(callback) {
+    fetch('config/map-list.json')
+        .then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        })
+        .then(function (data) {
+            mapList = Array.isArray(data) ? data : [];
+            if (mapList.length > 0) {
+                currentMapInfo = mapList[0];
+                currentMapKey = currentMapInfo.key;
+            }
+            callback();
+        })
+        .catch(function () {
+            // フォールバック: デフォルトマップで続行
+            mapList = [{
+                key: 'Japan-1000-locations',
+                nameJa: '日本',
+                description: '',
+                scaleS: 325,
+                locationCount: 1000
+            }];
+            currentMapInfo = mapList[0];
+            currentMapKey = currentMapInfo.key;
+            callback();
+        });
+}
+
+function renderMapCards() {
+    var container = $('map-card-list');
+    if (!container) return;
+    container.innerHTML = '';
+    if (mapList.length === 0) {
+        container.innerHTML = '<p class="map-loading">マップが見つかりません</p>';
+        return;
+    }
+    mapList.forEach(function (map) {
+        var card = document.createElement('div');
+        card.className = 'map-card' + (currentMapInfo && currentMapInfo.key === map.key ? ' selected' : '');
+        card.innerHTML =
+            '<div class="map-card-name">' + escapeHtml(map.nameJa) + '</div>' +
+            '<div class="map-card-desc">' + escapeHtml(map.description) + '</div>' +
+            '<div class="map-card-count">' + map.locationCount.toLocaleString() + ' locations</div>';
+        card.addEventListener('click', function () {
+            currentMapInfo = map;
+            currentMapKey = map.key;
+            renderMapCards();
+        });
+        container.appendChild(card);
+    });
+}
+
 // ---- Google Maps コールバック（グローバルに公開が必要） ----
 function initGame() {
     setupKeyboardShortcuts();
@@ -116,7 +182,9 @@ function initGame() {
         $('error-screen').style.display = 'none';
         resetGame();
     };
-    setupRoundSelect();
+    loadMapList(function () {
+        setupRoundSelect();
+    });
 }
 
 // ============================================================
@@ -160,6 +228,7 @@ function setupRoundSelect() {
             startGame();
         });
     });
+    renderMapCards();
 }
 
 // ============================================================
@@ -178,8 +247,11 @@ function startGame() {
     currentPanoLatLng = null;
     locationQueue = [];
 
+    if (currentMapInfo) currentMapKey = currentMapInfo.key;
     $('round-select-screen').style.display = 'none';
     $('game-screen').style.display = '';
+    var smn = $('status-map-name');
+    if (smn) smn.textContent = currentMapInfo ? currentMapInfo.nameJa : '';
 
     // 制限時間の読み込み
     var sliderVal = parseInt(($('time-limit-slider') || {}).value || '0', 10);
@@ -606,7 +678,8 @@ function onTimeout() {
         var guessLatLng = guessMarker.getPosition();
         var distanceM = google.maps.geometry.spherical.computeDistanceBetween(answerLatLng, guessLatLng);
         var distanceKm = distanceM / 1000;
-        var score = Math.round(5000 * Math.exp(-distanceKm / 2000));
+        var scaleS = currentMapInfo ? currentMapInfo.scaleS : 2000;
+        var score = Math.round(5000 * Math.exp(-distanceKm / scaleS));
         totalScore += score;
         distances.push(distanceKm);
         scores.push(score);
@@ -811,7 +884,8 @@ function onGuess() {
     var guessLatLng = guessMarker.getPosition();
     var distanceM = google.maps.geometry.spherical.computeDistanceBetween(answerLatLng, guessLatLng);
     var distanceKm = distanceM / 1000;
-    var score = Math.round(5000 * Math.exp(-distanceKm / 2000));
+    var scaleS = currentMapInfo ? currentMapInfo.scaleS : 2000;
+    var score = Math.round(5000 * Math.exp(-distanceKm / scaleS));
 
     totalScore += score;
     distances.push(distanceKm);
@@ -914,6 +988,7 @@ function showEndScreen() {
     // ゲームモード・制限時間
     var modeLabel = { move: 'Move', nomove: 'No Move', nmpz: 'NMPZ' }[gameMode] || gameMode;
     var timeLabel = roundTimeLimit > 0 ? formatTime(roundTimeLimit) : '制限なし';
+    $('end-map-name').textContent = currentMapInfo ? currentMapInfo.nameJa : '';
     $('end-game-info').textContent = modeLabel + '  ·  Round Time: ' + timeLabel;
 
     $('end-total-score').textContent = '合計スコア: ' + totalScore + ' / ' + (totalRounds * 5000);

@@ -1,0 +1,9 @@
+[
+    {
+        "key": "Japan-1000-locations",
+        "nameJa": "日本",
+        "description": "日本全国のストリートビューロケーション。一般道から酷道まで幅広く収録。",
+        "scaleS": 325,
+        "locationCount": 1000
+    }
+]
