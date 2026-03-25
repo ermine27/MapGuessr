@@ -47,11 +47,14 @@ var currentTravelDist = 0;    // 現ラウンドの累積移動距離（m）
 var currentPanoLatLng = null; // 直前のパノラマのLatLng（距離計算用）
 var pendingTravelUpdate = false; // 次のposition_changedでの距離計算を待機中フラグ
 
+// ---- 重複防止キュー ----
+var locationQueue = []; // ゲーム内重複防止用シャッフル済みキュー（cycle方式）
+
 // ---- 北向きアニメーション速度 ----
 var NORTH_ROTATE_SPEED = 540; // degrees/second（大きくすると速く、小さくすると遅くなります）
 
 // ---- マップ設定 ----
-var currentMapKey = 'japan'; // 使用するマップ（maps/ フォルダのファイル名と対応）
+var currentMapKey = 'Japan-1000-locations'; // 使用するマップ（maps/ フォルダのファイル名と対応）
 
 // ---- 表示設定 ----
 var showMapLabels = true; // true: 国名・地名等を表示、false: 非表示
@@ -88,6 +91,15 @@ function formatDistance(km) {
         return Math.round(km * 1000) + ' m';
     }
     return km.toFixed(1) + ' km';
+}
+
+function shuffleArray(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
 }
 
 function formatTravelDist(m) {
@@ -164,6 +176,7 @@ function startGame() {
     travelDistances = [];
     currentTravelDist = 0;
     currentPanoLatLng = null;
+    locationQueue = [];
 
     $('round-select-screen').style.display = 'none';
     $('game-screen').style.display = '';
@@ -290,7 +303,7 @@ function startGame() {
 // マップデータ読み込み（fetch）
 // ============================================================
 function loadMapData(mapKey, callback) {
-    if (window.MAPGUESSR_SEEDS && window.MAPGUESSR_SEEDS[mapKey]) {
+    if (window.MAPGUESSR_LOCATIONS && window.MAPGUESSR_LOCATIONS[mapKey]) {
         callback();
         return;
     }
@@ -300,8 +313,9 @@ function loadMapData(mapKey, callback) {
             return res.json();
         })
         .then(function (data) {
-            if (!window.MAPGUESSR_SEEDS) window.MAPGUESSR_SEEDS = {};
-            window.MAPGUESSR_SEEDS[mapKey] = data;
+            if (!window.MAPGUESSR_LOCATIONS) window.MAPGUESSR_LOCATIONS = {};
+            // 配列直接、または {"customCoordinates": [...]} 形式の両方に対応
+            window.MAPGUESSR_LOCATIONS[mapKey] = Array.isArray(data) ? data : (data.customCoordinates || []);
             callback();
         })
         .catch(function () {
@@ -455,7 +469,7 @@ function nextRound() {
     clearInterval(roundTimerInterval);
     startRoundTimer();
 
-    findRandomStreetView(0);
+    findRandomStreetView();
 }
 
 function updateStatus() {
@@ -496,22 +510,11 @@ function startRoundTimer() {
 }
 
 // ============================================================
-// ランダムストリートビュー取得（シードポイント + ランダムオフセット方式）
+// ランダムストリートビュー取得（ロケーションプール方式）
 // ============================================================
-function findRandomStreetView(attempt) {
-    // ---- 調整可能な定数 ----
-    var MAX_ATTEMPTS = 20;    // 最大試行回数
-    var OFFSET_DEG = 0.3;   // シードから散らす最大幅（度）～約 33 km
-    var SEARCH_RADIUS = 5000;  // getPanorama の検索半径（m）
-    // ------------------------
-
-    if (attempt >= MAX_ATTEMPTS) {
-        showStreetViewError();
-        return;
-    }
-
-    var mapData = window.MAPGUESSR_SEEDS && window.MAPGUESSR_SEEDS[currentMapKey];
-    if (!mapData || !mapData.seeds || mapData.seeds.length === 0) {
+function findRandomStreetView() {
+    var locations = window.MAPGUESSR_LOCATIONS && window.MAPGUESSR_LOCATIONS[currentMapKey];
+    if (!locations || locations.length === 0) {
         $('game-screen').style.display = 'none';
         $('error-screen').style.display = '';
         $('error-message').textContent = 'マップデータが読み込まれていません。ページを再読み込みしてください。';
@@ -519,37 +522,28 @@ function findRandomStreetView(attempt) {
         return;
     }
 
-    var seeds = mapData.seeds;
-    var seed = seeds[Math.floor(Math.random() * seeds.length)];
-    var lat = seed.lat + (Math.random() * 2 - 1) * OFFSET_DEG;
-    var lng = seed.lng + (Math.random() * 2 - 1) * OFFSET_DEG;
-    var latLng = new google.maps.LatLng(lat, lng);
-
-    var sv = new google.maps.StreetViewService();
-    sv.getPanorama(
-        { location: latLng, radius: SEARCH_RADIUS, source: google.maps.StreetViewSource.OUTDOOR },
-        function (data, status) {
-            if (status === google.maps.StreetViewStatus.OK) {
-                answerLatLng = data.location.latLng;
-                var startPano = data.location.pano;
-                var startPov = { heading: Math.random() * 360, pitch: 0 };
-                moveHistory = [];
-                checkpointData = null;
-                startPanoData = { pano: startPano, pov: startPov };
-                currentPanoId = startPano;
-                currentTravelDist = 0;
-                currentPanoLatLng = data.location.latLng;
-                isProgrammaticPanoChange = true;
-                panorama.setPano(startPano);
-                panorama.setPov(startPov);
-                panorama.setVisible(true);
-                updateMoveBackButton();
-                updateCheckpointButton();
-            } else {
-                findRandomStreetView(attempt + 1);
-            }
-        }
-    );
+    // キューが空になったら再シャッフルして補充（cycle方式: 枯渇時は重複を許容して継続）
+    if (locationQueue.length === 0) {
+        locationQueue = shuffleArray(locations);
+    }
+    var loc = locationQueue.pop();
+    answerLatLng = new google.maps.LatLng(loc.lat, loc.lng);
+    var startPano = loc.panoId;
+    var startPov = { heading: loc.heading || 0, pitch: loc.pitch || 0 };
+    var startZoom = (loc.zoom != null) ? loc.zoom : 0;
+    moveHistory = [];
+    checkpointData = null;
+    startPanoData = { pano: startPano, pov: startPov };
+    currentPanoId = startPano;
+    currentTravelDist = 0;
+    currentPanoLatLng = answerLatLng;
+    isProgrammaticPanoChange = true;
+    panorama.setPano(startPano);
+    panorama.setPov(startPov);
+    panorama.setZoom(startZoom);
+    panorama.setVisible(true);
+    updateMoveBackButton();
+    updateCheckpointButton();
 }
 
 function showStreetViewError() {
@@ -570,7 +564,7 @@ function retryCurrentRound() {
     // タイマーリセット
     clearInterval(roundTimerInterval);
     startRoundTimer();
-    findRandomStreetView(0);
+    findRandomStreetView();
 }
 
 // ============================================================
@@ -1121,6 +1115,7 @@ function resetGame() {
     currentPanoLatLng = null;
     pendingTravelUpdate = false;
     answerLatLng = null;
+    locationQueue = [];
     mapLocked = false;
     isMapHovered = false;
     sizeStage = 0;
