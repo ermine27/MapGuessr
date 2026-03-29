@@ -118,6 +118,14 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+// マップの初期表示位置・ズームを返すユーティリティ
+// zoomOffset: zoom 値に加算する値（負数で引き、使わなければ 0）
+function getMapView(zoomOffset) {
+    var center = (currentMapInfo && currentMapInfo.mapCenter) ? currentMapInfo.mapCenter : { lat: 20, lng: 0 };
+    var zoom = (currentMapInfo && currentMapInfo.mapZoom != null) ? currentMapInfo.mapZoom : 2;
+    return { center: center, zoom: Math.max(1, zoom + (zoomOffset || 0)) };
+}
+
 // ============================================================
 // マップリスト読み込み・選択
 // ============================================================
@@ -314,9 +322,10 @@ function startGame() {
         currentPanoLatLng = newPos;
     });
 
+    var initialView = getMapView(0);
     guessMap = new google.maps.Map($('guess-map'), {
-        center: { lat: 36, lng: 140 },
-        zoom: 5,
+        center: initialView.center,
+        zoom: initialView.zoom,
         clickableIcons: false,
         disableDefaultUI: true,
         zoomControl: false,
@@ -522,8 +531,9 @@ function nextRound() {
     $('btn-guess').disabled = true;
     $('result-panel').style.display = 'none';
 
-    guessMap.setCenter({ lat: 36, lng: 140 });
-    guessMap.setZoom(5);
+    var view = getMapView(0);
+    guessMap.setCenter(view.center);
+    guessMap.setZoom(view.zoom);
 
     // チェックポイント・移動履歴リセット
     if (northRotateAnimId) { cancelAnimationFrame(northRotateAnimId); northRotateAnimId = null; }
@@ -1032,9 +1042,10 @@ function initEndMap() {
 
     // 地図を初期化（または再利用）
     if (!endMap) {
+        var endView = getMapView(-1);
         endMap = new google.maps.Map(container, {
-            center: { lat: 36, lng: 140 },
-            zoom: 3,
+            center: endView.center,
+            zoom: endView.zoom,
             clickableIcons: false,
             disableDefaultUI: true,
             zoomControl: true,
