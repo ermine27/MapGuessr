@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Area Preview - MapGuessr Tools</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        /* ---- ヘッダー ---- */
+        #header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+            flex-shrink: 0;
+        }
+
+        #header h1 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #a8d8ea;
+            white-space: nowrap;
+        }
+
+        .drop-zone {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .drop-zone label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border: 1px dashed #0f3460;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #a8d8ea;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .drop-zone label:hover {
+            background: #1a4a80;
+        }
+
+        .drop-zone label.dragover {
+            background: #1a4a80;
+            border-color: #a8d8ea;
+        }
+
+        .drop-zone input[type="file"] {
+            display: none;
+        }
+
+        #info-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 4px 16px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+            font-size: 12px;
+            color: #8899bb;
+            flex-shrink: 0;
+            min-height: 28px;
+            flex-wrap: wrap;
+        }
+
+        #info-bar span {
+            white-space: nowrap;
+        }
+
+        #info-bar .badge {
+            background: #0f3460;
+            border-radius: 4px;
+            padding: 1px 7px;
+            color: #a8d8ea;
+        }
+
+        /* ---- APIキー設定パネル ---- */
+        #api-setup {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 10, 20, 0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        #api-setup.hidden {
+            display: none;
+        }
+
+        .setup-box {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 12px;
+            padding: 32px;
+            width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .setup-box h2 {
+            color: #a8d8ea;
+            font-size: 18px;
+        }
+
+        .setup-box p {
+            font-size: 13px;
+            color: #8899bb;
+            line-height: 1.6;
+        }
+
+        .setup-box input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            background: #0f1b35;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 13px;
+            font-family: monospace;
+            outline: none;
+        }
+
+        .setup-box input[type="text"]:focus {
+            border-color: #a8d8ea;
+        }
+
+        .setup-box button {
+            padding: 10px;
+            background: #0f3460;
+            border: none;
+            border-radius: 6px;
+            color: #a8d8ea;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .setup-box button:hover {
+            background: #1a4a80;
+        }
+
+        .setup-box .note {
+            font-size: 11px;
+            color: #556688;
+        }
+
+        /* ---- 地図 ---- */
+        #map-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ---- Feature テーブルパネル ---- */
+        #feature-panel {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 280px;
+            max-height: calc(100% - 24px);
+            background: rgba(22, 33, 62, 0.95);
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-size: 12px;
+        }
+
+        #feature-panel.hidden {
+            display: none;
+        }
+
+        #feature-panel-header {
+            padding: 8px 12px;
+            background: #0f3460;
+            color: #a8d8ea;
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #feature-panel-close {
+            cursor: pointer;
+            opacity: 0.7;
+            font-size: 16px;
+            line-height: 1;
+            background: none;
+            border: none;
+            color: #a8d8ea;
+        }
+
+        #feature-panel-close:hover {
+            opacity: 1;
+        }
+
+        #feature-list {
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .feature-item {
+            padding: 6px 12px;
+            border-bottom: 1px solid #0f3460;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .feature-item:hover {
+            background: #0f3460;
+        }
+
+        .feature-item.active {
+            background: #1a4a80;
+        }
+
+        .feature-item .fi-name {
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+
+        .feature-item .fi-sub {
+            color: #8899bb;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        /* ---- 操作ボタン ---- */
+        #controls {
+            position: absolute;
+            bottom: 24px;
+            left: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .ctrl-btn {
+            padding: 7px 14px;
+            background: rgba(22, 33, 62, 0.9);
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            color: #a8d8ea;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+
+        .ctrl-btn:hover {
+            background: rgba(26, 74, 128, 0.95);
+        }
+
+        /* ---- 読み込み中 ---- */
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(22, 33, 62, 0.9);
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 16px 28px;
+            font-size: 13px;
+            color: #a8d8ea;
+            display: none;
+            z-index: 10;
+        }
+
+        #loading.visible {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ヘッダー -->
+    <div id="header">
+        <h1>Area Preview</h1>
+        <div class="drop-zone" id="drop-zone">
+            <label id="file-label" for="file-input">
+                📂 GeoJSONファイルを選択 または ここにドロップ
+            </label>
+            <input type="file" id="file-input" accept=".geojson,.json">
+        </div>
+        <button class="ctrl-btn" onclick="showApiSetup()" title="APIキーの変更">🔑 APIキー</button>
+    </div>
+
+    <!-- 情報バー -->
+    <div id="info-bar">
+        <span id="info-filename" style="color:#8899bb;">—</span>
+        <span id="info-features" class="badge" style="display:none"></span>
+        <span id="info-bbox" style="display:none"></span>
+    </div>
+
+    <!-- メインエリア -->
+    <div id="map-container">
+        <!-- APIキー設定 -->
+        <div id="api-setup">
+            <div class="setup-box">
+                <h2>Google Maps APIキー</h2>
+                <p>地図を表示するために Google Maps JavaScript API のキーが必要です。<br>入力したキーはブラウザの localStorage にのみ保存されます。</p>
+                <input type="text" id="api-key-input" placeholder="AIzaSy..." autocomplete="off" spellcheck="false">
+                <button onclick="applyApiKey()">地図を読み込む</button>
+                <p class="note">キーは再起動後も保持されます。変更するには右上の 🔑 ボタンを使用してください。</p>
+            </div>
+        </div>
+
+        <!-- Google Maps -->
+        <div id="map"></div>
+
+        <!-- Feature一覧パネル -->
+        <div id="feature-panel" class="hidden">
+            <div id="feature-panel-header">
+                <span id="feature-panel-title">Features</span>
+                <button id="feature-panel-close" onclick="closeFeaturePanel()">✕</button>
+            </div>
+            <div id="feature-list"></div>
+        </div>
+
+        <!-- 操作ボタン -->
+        <div id="controls">
+            <button class="ctrl-btn" id="btn-fit" onclick="fitAll()" style="display:none">🗺️ 全体表示</button>
+            <button class="ctrl-btn" id="btn-features" onclick="toggleFeaturePanel()" style="display:none">📋
+                Feature一覧</button>
+        </div>
+
+        <!-- 読み込み中 -->
+        <div id="loading">読み込み中...</div>
+    </div>
+
+    <script>
+        // -------- APIキー管理 --------
+        const STORAGE_KEY = 'mapguessr_tools_api_key';
+        let mapInstance = null;
+        let dataLayer = null;
+        let currentFeatures = [];
+        let activeFeatureIndex = -1;
+
+        function getStoredApiKey() {
+            return localStorage.getItem(STORAGE_KEY) || '';
+        }
+
+        function showApiSetup() {
+            document.getElementById('api-key-input').value = getStoredApiKey();
+            document.getElementById('api-setup').classList.remove('hidden');
+        }
+
+        function applyApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if (!key) { alert('APIキーを入力してください。'); return; }
+            localStorage.setItem(STORAGE_KEY, key);
+            document.getElementById('api-setup').classList.add('hidden');
+            loadMapsApi(key);
+        }
+
+        function loadMapsApi(key) {
+            // 既存スクリプトを除去してから再挿入
+            const old = document.getElementById('gmaps-script');
+            if (old) old.remove();
+            const s = document.createElement('script');
+            s.id = 'gmaps-script';
+            s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=initMap`;
+            s.async = true;
+            s.defer = true;
+            document.head.appendChild(s);
+        }
+
+        // -------- 地図の初期化 --------
+        window.initMap = function () {
+            mapInstance = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 20, lng: 0 },
+                zoom: 2,
+                mapTypeId: 'roadmap',
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false,
+                styles: [
+                    { featureType: 'all', elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+                    { featureType: 'all', elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+                    { featureType: 'all', elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+                    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
+                    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
+                    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
+                ],
+            });
+
+            dataLayer = new google.maps.Data({ map: mapInstance });
+            applyDataLayerStyle(dataLayer);
+        };
+
+        function applyDataLayerStyle(layer) {
+            layer.setStyle(function (feature) {
+                const idx = feature.getProperty('_idx');
+                const isActive = idx === activeFeatureIndex;
+                return {
+                    fillColor: isActive ? '#f9a825' : '#29b6f6',
+                    fillOpacity: isActive ? 0.40 : 0.20,
+                    strokeColor: isActive ? '#f9a825' : '#29b6f6',
+                    strokeWeight: isActive ? 2.5 : 1.5,
+                    strokeOpacity: 0.9,
+                };
+            });
+
+            layer.addListener('click', function (e) {
+                const idx = e.feature.getProperty('_idx');
+                highlightFeature(idx);
+            });
+        }
+
+        // -------- GeoJSONの読み込み --------
+        function loadGeoJson(geojson) {
+            if (!mapInstance) { alert('地図がまだ読み込まれていません。APIキーを確認してください。'); return; }
+
+            // 既存データをクリア
+            dataLayer.forEach(f => dataLayer.remove(f));
+            currentFeatures = [];
+            activeFeatureIndex = -1;
+
+            const features = geojson.type === 'FeatureCollection'
+                ? geojson.features
+                : [geojson];
+
+            if (features.length === 0) {
+                alert('GeoJSON に Feature が含まれていません。');
+                return;
+            }
+
+            // _idx プロパティを付与してデータ追加
+            features.forEach((feat, i) => {
+                const withIdx = Object.assign({}, feat, {
+                    properties: Object.assign({}, feat.properties, { _idx: i }),
+                });
+                dataLayer.addGeoJson(withIdx);
+            });
+            currentFeatures = features;
+
+            // バウンディングボックスを計算して fitBounds
+            const bounds = computeBounds(geojson);
+            if (bounds) mapInstance.fitBounds(bounds);
+
+            // Feature一覧を更新
+            renderFeatureList(features);
+            updateInfoBar(geojson, bounds);
+
+            document.getElementById('btn-fit').style.display = '';
+            document.getElementById('btn-features').style.display = features.length > 1 ? '' : 'none';
+        }
+
+        // -------- バウンディングボックスの計算 --------
+        function computeBounds(geojson) {
+            let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+
+            function walk(coords) {
+                if (typeof coords[0] === 'number') {
+                    const [lng, lat] = coords;
+                    if (lat < minLat) minLat = lat;
+                    if (lat > maxLat) maxLat = lat;
+                    if (lng < minLng) minLng = lng;
+                    if (lng > maxLng) maxLng = lng;
+                } else {
+                    coords.forEach(walk);
+                }
+            }
+
+            const features = geojson.type === 'FeatureCollection' ? geojson.features : [geojson];
+            features.forEach(f => {
+                if (f.geometry) walk(f.geometry.coordinates);
+            });
+
+            if (!isFinite(minLat)) return null;
+            return new google.maps.LatLngBounds(
+                { lat: minLat, lng: minLng },
+                { lat: maxLat, lng: maxLng }
+            );
+        }
+
+        // -------- 情報バーの更新 --------
+        function updateInfoBar(geojson, bounds) {
+            const features = geojson.type === 'FeatureCollection' ? geojson.features : [geojson];
+            document.getElementById('info-features').textContent = `${features.length} Feature`;
+            document.getElementById('info-features').style.display = '';
+
+            if (bounds) {
+                const ne = bounds.getNorthEast(), sw = bounds.getSouthWest();
+                const fmtCoord = v => v.toFixed(2);
+                document.getElementById('info-bbox').textContent =
+                    `bbox: ${fmtCoord(sw.lat())}°, ${fmtCoord(sw.lng())}° 〜 ${fmtCoord(ne.lat())}°, ${fmtCoord(ne.lng())}°`;
+                document.getElementById('info-bbox').style.display = '';
+            }
+        }
+
+        // -------- Feature一覧の描画 --------
+        function renderFeatureList(features) {
+            const list = document.getElementById('feature-list');
+            list.innerHTML = '';
+            document.getElementById('feature-panel-title').textContent = `Features (${features.length})`;
+
+            features.forEach((feat, i) => {
+                const p = feat.properties || {};
+                const name = p.name || p.NAME || p.admin || `Feature ${i + 1}`;
+                const sub = [p.iso_a2 || p.ISO_A2, p.continent || p.CONTINENT, p.hasc]
+                    .filter(Boolean).join('  ·  ');
+
+                const div = document.createElement('div');
+                div.className = 'feature-item';
+                div.dataset.idx = i;
+                div.innerHTML = `<div class="fi-name">${escHtml(name)}</div>${sub ? `<div class="fi-sub">${escHtml(sub)}</div>` : ''}`;
+                div.addEventListener('click', () => highlightFeature(i));
+                list.appendChild(div);
+            });
+        }
+
+        function highlightFeature(idx) {
+            activeFeatureIndex = idx;
+            dataLayer.setStyle(dataLayer.getStyle()); // スタイルを再適用するために setStyle を呼ぶ
+            applyDataLayerStyle(dataLayer);
+
+            // リスト内のハイライト
+            document.querySelectorAll('.feature-item').forEach(el => {
+                el.classList.toggle('active', parseInt(el.dataset.idx, 10) === idx);
+            });
+
+            // 該当 Feature にフィット
+            const feat = currentFeatures[idx];
+            if (feat && feat.geometry) {
+                const bounds = computeBounds({ type: 'FeatureCollection', features: [feat] });
+                if (bounds) mapInstance.fitBounds(bounds);
+            }
+
+            // パネルが閉じていたら開く
+            document.getElementById('feature-panel').classList.remove('hidden');
+        }
+
+        function toggleFeaturePanel() {
+            document.getElementById('feature-panel').classList.toggle('hidden');
+        }
+
+        function closeFeaturePanel() {
+            document.getElementById('feature-panel').classList.add('hidden');
+        }
+
+        function fitAll() {
+            if (!mapInstance || currentFeatures.length === 0) return;
+            const geojson = { type: 'FeatureCollection', features: currentFeatures };
+            const bounds = computeBounds(geojson);
+            if (bounds) mapInstance.fitBounds(bounds);
+            activeFeatureIndex = -1;
+            applyDataLayerStyle(dataLayer);
+            document.querySelectorAll('.feature-item').forEach(el => el.classList.remove('active'));
+        }
+
+        // -------- ファイル読み込み --------
+        function readFile(file) {
+            if (!file) return;
+            document.getElementById('file-label').textContent = `📄 ${file.name}`;
+            document.getElementById('info-filename').textContent = file.name;
+            document.getElementById('info-features').style.display = 'none';
+            document.getElementById('info-bbox').style.display = 'none';
+            document.getElementById('btn-fit').style.display = 'none';
+            document.getElementById('btn-features').style.display = 'none';
+            document.getElementById('feature-panel').classList.add('hidden');
+
+            const loading = document.getElementById('loading');
+            loading.classList.add('visible');
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                loading.classList.remove('visible');
+                let geojson;
+                try {
+                    geojson = JSON.parse(e.target.result);
+                } catch (err) {
+                    alert('JSONの解析に失敗しました: ' + err.message);
+                    return;
+                }
+                loadGeoJson(geojson);
+            };
+            reader.readAsText(file);
+        }
+
+        // ファイル選択
+        document.getElementById('file-input').addEventListener('change', function () {
+            readFile(this.files[0]);
+            this.value = ''; // 同一ファイルを再選択可能にするためリセット
+        });
+
+        // ドラッグ&ドロップ
+        const dropZone = document.getElementById('drop-zone');
+        const fileLabel = document.getElementById('file-label');
+
+        ['dragenter', 'dragover'].forEach(evt => {
+            dropZone.addEventListener(evt, e => {
+                e.preventDefault();
+                fileLabel.classList.add('dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+            dropZone.addEventListener(evt, e => {
+                e.preventDefault();
+                fileLabel.classList.remove('dragover');
+            });
+        });
+        dropZone.addEventListener('drop', function (e) {
+            const file = e.dataTransfer.files[0];
+            if (file) readFile(file);
+        });
+
+        // -------- ユーティリティ --------
+        function escHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // -------- 起動処理 --------
+        (function init() {
+            const key = getStoredApiKey();
+            if (key) {
+                document.getElementById('api-setup').classList.add('hidden');
+                loadMapsApi(key);
+            }
+        })();
+    </script>
+</body>
+
+</html>

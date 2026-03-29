@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Preview - MapGuessr Tools</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        /* ---- ヘッダー ---- */
+        #header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+            flex-shrink: 0;
+        }
+
+        #header h1 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #a8d8ea;
+            white-space: nowrap;
+        }
+
+        .drop-zone {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .drop-zone label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border: 1px dashed #0f3460;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #a8d8ea;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .drop-zone label:hover {
+            background: #1a4a80;
+        }
+
+        .drop-zone label.dragover {
+            background: #1a4a80;
+            border-color: #a8d8ea;
+        }
+
+        .drop-zone input[type="file"] {
+            display: none;
+        }
+
+        /* ---- 情報バー ---- */
+        #info-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 4px 16px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+            font-size: 12px;
+            color: #8899bb;
+            flex-shrink: 0;
+            min-height: 28px;
+            flex-wrap: wrap;
+        }
+
+        #info-bar span {
+            white-space: nowrap;
+        }
+
+        #info-bar .badge {
+            background: #0f3460;
+            border-radius: 4px;
+            padding: 1px 7px;
+            color: #a8d8ea;
+        }
+
+        /* ---- APIキー設定パネル ---- */
+        #api-setup {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 10, 20, 0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        #api-setup.hidden {
+            display: none;
+        }
+
+        .setup-box {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 12px;
+            padding: 32px;
+            width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .setup-box h2 {
+            color: #a8d8ea;
+            font-size: 18px;
+        }
+
+        .setup-box p {
+            font-size: 13px;
+            color: #8899bb;
+            line-height: 1.6;
+        }
+
+        .setup-box input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            background: #0f1b35;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 13px;
+            font-family: monospace;
+            outline: none;
+        }
+
+        .setup-box input[type="text"]:focus {
+            border-color: #a8d8ea;
+        }
+
+        .setup-box button {
+            padding: 10px;
+            background: #0f3460;
+            border: none;
+            border-radius: 6px;
+            color: #a8d8ea;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .setup-box button:hover {
+            background: #1a4a80;
+        }
+
+        .setup-box .note {
+            font-size: 11px;
+            color: #556688;
+        }
+
+        /* ---- 地図 ---- */
+        #map-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ---- ロケーション一覧パネル ---- */
+        #loc-panel {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 300px;
+            max-height: calc(100% - 24px);
+            background: rgba(22, 33, 62, 0.95);
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-size: 12px;
+            z-index: 10;
+        }
+
+        #loc-panel.hidden {
+            display: none;
+        }
+
+        #loc-panel-header {
+            padding: 8px 12px;
+            background: #0f3460;
+            color: #a8d8ea;
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        #loc-panel-close {
+            cursor: pointer;
+            opacity: 0.7;
+            font-size: 16px;
+            line-height: 1;
+            background: none;
+            border: none;
+            color: #a8d8ea;
+        }
+
+        #loc-panel-close:hover {
+            opacity: 1;
+        }
+
+        #loc-list {
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .loc-item {
+            padding: 5px 12px;
+            border-bottom: 1px solid #0f3460;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .loc-item:hover {
+            background: #0f3460;
+        }
+
+        .loc-item.active {
+            background: #1a4a80;
+        }
+
+        .loc-item .li-idx {
+            color: #556688;
+            font-size: 11px;
+            min-width: 32px;
+            text-align: right;
+        }
+
+        .loc-item .li-coords {
+            color: #e0e0e0;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        .loc-item .li-codes {
+            margin-left: auto;
+            color: #a8d8ea;
+            font-size: 11px;
+        }
+
+        /* ---- ページネーション ---- */
+        #loc-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 12px;
+            background: #0a1020;
+            border-top: 1px solid #0f3460;
+            flex-shrink: 0;
+        }
+
+        #loc-pagination button {
+            background: #0f3460;
+            border: none;
+            border-radius: 4px;
+            color: #a8d8ea;
+            font-size: 12px;
+            padding: 3px 10px;
+            cursor: pointer;
+        }
+
+        #loc-pagination button:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        #loc-pagination button:not(:disabled):hover {
+            background: #1a4a80;
+        }
+
+        #loc-pagination .page-info {
+            font-size: 11px;
+            color: #8899bb;
+        }
+
+        /* ---- 操作ボタン ---- */
+        #controls {
+            position: absolute;
+            bottom: 24px;
+            left: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .ctrl-btn {
+            padding: 7px 14px;
+            background: rgba(22, 33, 62, 0.9);
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            color: #a8d8ea;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+
+        .ctrl-btn:hover {
+            background: rgba(26, 74, 128, 0.95);
+        }
+
+        /* ---- 読み込み中 ---- */
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(22, 33, 62, 0.9);
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 16px 28px;
+            font-size: 13px;
+            color: #a8d8ea;
+            display: none;
+            z-index: 10;
+        }
+
+        #loading.visible {
+            display: block;
+        }
+
+        /* ---- InfoWindow カスタムスタイル ---- */
+        .iw-body {
+            background: #16213e;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 12px;
+            min-width: 240px;
+            line-height: 1.6;
+        }
+
+        .iw-body table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .iw-body td {
+            padding: 2px 4px;
+            vertical-align: top;
+        }
+
+        .iw-body td:first-child {
+            color: #8899bb;
+            white-space: nowrap;
+            padding-right: 10px;
+        }
+
+        .iw-body td:last-child {
+            color: #e0e0e0;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .iw-panoid {
+            color: #a8d8ea !important;
+            font-size: 11px;
+        }
+
+        .iw-links {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #0f3460;
+        }
+
+        .iw-links a {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #0f3460;
+            border-radius: 4px;
+            color: #a8d8ea;
+            text-decoration: none;
+            font-size: 11px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .iw-links a:hover {
+            background: #1a4a80;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ヘッダー -->
+    <div id="header">
+        <h1>Map Preview</h1>
+        <div class="drop-zone" id="drop-zone">
+            <label id="file-label" for="file-input">
+                📂 ロケーションJSONを選択 または ここにドロップ
+            </label>
+            <input type="file" id="file-input" accept=".json">
+        </div>
+        <button class="ctrl-btn" onclick="showApiSetup()" title="APIキーの変更">🔑 APIキー</button>
+    </div>
+
+    <!-- 情報バー -->
+    <div id="info-bar">
+        <span id="info-filename" style="color:#8899bb;">—</span>
+        <span id="info-count" class="badge" style="display:none"></span>
+        <span id="info-countries" style="display:none"></span>
+        <span id="info-bbox" style="display:none"></span>
+    </div>
+
+    <!-- メインエリア -->
+    <div id="map-container">
+
+        <!-- APIキー設定 -->
+        <div id="api-setup">
+            <div class="setup-box">
+                <h2>Google Maps APIキー</h2>
+                <p>地図を表示するために Google Maps JavaScript API のキーが必要です。<br>入力したキーはブラウザの localStorage にのみ保存されます。</p>
+                <input type="text" id="api-key-input" placeholder="AIzaSy..." autocomplete="off" spellcheck="false">
+                <button onclick="applyApiKey()">地図を読み込む</button>
+                <p class="note">キーは再起動後も保持されます。変更するには右上の 🔑 ボタンを使用してください。</p>
+            </div>
+        </div>
+
+        <!-- Google Maps -->
+        <div id="map"></div>
+
+        <!-- ロケーション一覧パネル -->
+        <div id="loc-panel" class="hidden">
+            <div id="loc-panel-header">
+                <span id="loc-panel-title">Locations</span>
+                <button id="loc-panel-close" onclick="closeLocPanel()">✕</button>
+            </div>
+            <div id="loc-list"></div>
+            <div id="loc-pagination">
+                <button id="btn-prev" onclick="changePage(-1)">◀ 前</button>
+                <span class="page-info" id="page-info"></span>
+                <button id="btn-next" onclick="changePage(1)">次 ▶</button>
+            </div>
+        </div>
+
+        <!-- 操作ボタン -->
+        <div id="controls">
+            <button class="ctrl-btn" id="btn-fit" onclick="fitAll()" style="display:none">🗺️ 全体表示</button>
+            <button class="ctrl-btn" id="btn-list" onclick="toggleLocPanel()" style="display:none">📋 一覧</button>
+        </div>
+
+        <!-- 読み込み中 -->
+        <div id="loading">読み込み中...</div>
+    </div>
+
+    <script>
+        // ──────────────────────────────────────
+        // APIキー管理
+        // ──────────────────────────────────────
+        const STORAGE_KEY = 'mapguessr_tools_api_key';
+        let mapInstance = null;
+        let infoWindow = null;
+        let markers = [];          // google.maps.Marker[]
+        let locations = [];          // パース済みロケーション配列
+        let activeIdx = -1;
+
+        // ページネーション
+        const PAGE_SIZE = 100;
+        let currentPage = 0;
+
+        function getStoredApiKey() {
+            return localStorage.getItem(STORAGE_KEY) || '';
+        }
+
+        function showApiSetup() {
+            document.getElementById('api-key-input').value = getStoredApiKey();
+            document.getElementById('api-setup').classList.remove('hidden');
+        }
+
+        function applyApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if (!key) { alert('APIキーを入力してください。'); return; }
+            localStorage.setItem(STORAGE_KEY, key);
+            document.getElementById('api-setup').classList.add('hidden');
+            loadMapsApi(key);
+        }
+
+        function loadMapsApi(key) {
+            const old = document.getElementById('gmaps-script');
+            if (old) old.remove();
+            const s = document.createElement('script');
+            s.id = 'gmaps-script';
+            s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=initMap`;
+            s.async = true;
+            s.defer = true;
+            document.head.appendChild(s);
+        }
+
+        // ──────────────────────────────────────
+        // 地図の初期化
+        // ──────────────────────────────────────
+        window.initMap = function () {
+            mapInstance = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 20, lng: 0 },
+                zoom: 2,
+                mapTypeId: 'roadmap',
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false,
+                styles: [
+                    { featureType: 'all', elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+                    { featureType: 'all', elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+                    { featureType: 'all', elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+                    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
+                    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
+                    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
+                ],
+            });
+
+            infoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
+
+            // 地図クリックで InfoWindow を閉じる
+            mapInstance.addListener('click', () => {
+                infoWindow.close();
+                setActive(-1);
+            });
+
+            // 既にロケーションが読み込み済みなら描画
+            if (locations.length > 0) renderMarkers();
+        };
+
+        // ──────────────────────────────────────
+        // マーカー描画
+        // ──────────────────────────────────────
+        const ICON_NORMAL = { path: google.maps && google.maps.SymbolPath ? google.maps.SymbolPath.CIRCLE : 0, scale: 5, fillColor: '#29b6f6', fillOpacity: 0.85, strokeColor: '#ffffff', strokeWeight: 1 };
+        const ICON_ACTIVE = { path: 0 /* CIRCLE */, scale: 7, fillColor: '#f9a825', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 1.5 };
+
+        function makeIcon(active) {
+            return {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: active ? 8 : 5,
+                fillColor: active ? '#f9a825' : '#29b6f6',
+                fillOpacity: active ? 1.0 : 0.85,
+                strokeColor: '#ffffff',
+                strokeWeight: active ? 1.5 : 1,
+            };
+        }
+
+        function renderMarkers() {
+            // 既存マーカーをすべて除去
+            markers.forEach(m => m.setMap(null));
+            markers = [];
+
+            locations.forEach((loc, i) => {
+                const marker = new google.maps.Marker({
+                    position: { lat: loc.lat, lng: loc.lng },
+                    map: mapInstance,
+                    icon: makeIcon(false),
+                    title: `#${i + 1}`,
+                });
+                marker.addListener('click', () => openInfoWindow(i, marker));
+                markers.push(marker);
+            });
+
+            fitAll();
+        }
+
+        function openInfoWindow(idx, marker) {
+            setActive(idx);
+
+            const loc = locations[idx];
+            const mapsUrl = `https://www.google.com/maps?q=${loc.lat},${loc.lng}`;
+            const svUrl = `https://www.google.com/maps/@?api=1&map_action=pano`
+                + `&pano=${encodeURIComponent(loc.panoId)}`
+                + `&heading=${loc.heading.toFixed(1)}`
+                + `&pitch=${loc.pitch.toFixed(1)}`;
+
+            const rows = [
+                ['lat / lng', `${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`],
+                ['heading', loc.heading.toFixed(2) + '°'],
+                ['pitch', loc.pitch.toFixed(2) + '°'],
+                ['zoom', loc.zoom.toFixed(4)],
+                ['country', loc.countryCode || '—'],
+                ['state', loc.stateCode || '—'],
+            ];
+
+            const rowsHtml = rows.map(([k, v]) =>
+                `<tr><td>${escHtml(k)}</td><td>${escHtml(String(v))}</td></tr>`
+            ).join('');
+
+            infoWindow.setContent(`
+                <div class="iw-body">
+                    <table>
+                        <tr><td>#</td><td>${idx + 1} / ${locations.length}</td></tr>
+                        <tr><td>panoId</td><td class="iw-panoid">${escHtml(loc.panoId)}</td></tr>
+                        ${rowsHtml}
+                    </table>
+                    <div class="iw-links">
+                        <a href="${mapsUrl}" target="_blank" rel="noopener">🗺️ Maps</a>
+                        <a href="${svUrl}"   target="_blank" rel="noopener">📷 Street View</a>
+                    </div>
+                </div>
+            `);
+            infoWindow.open(mapInstance, marker || markers[idx]);
+        }
+
+        function setActive(idx) {
+            // 前のアクティブマーカーを元に戻す
+            if (activeIdx >= 0 && markers[activeIdx]) {
+                markers[activeIdx].setIcon(makeIcon(false));
+                markers[activeIdx].setZIndex(null);
+            }
+            activeIdx = idx;
+            if (idx >= 0 && markers[idx]) {
+                markers[idx].setIcon(makeIcon(true));
+                markers[idx].setZIndex(1000);
+            }
+
+            // リスト内ハイライト（現在ページ内のみ）
+            const startIdx = currentPage * PAGE_SIZE;
+            const endIdx = startIdx + PAGE_SIZE;
+            if (idx >= startIdx && idx < endIdx) {
+                const rowIdx = idx - startIdx;
+                document.querySelectorAll('.loc-item').forEach((el, i) => {
+                    el.classList.toggle('active', i === rowIdx);
+                });
+            }
+        }
+
+        // ──────────────────────────────────────
+        // バウンディングボックス・fitAll
+        // ──────────────────────────────────────
+        function computeBounds(locs) {
+            if (!locs || locs.length === 0) return null;
+            let minLat = Infinity, maxLat = -Infinity;
+            let minLng = Infinity, maxLng = -Infinity;
+            for (const loc of locs) {
+                if (loc.lat < minLat) minLat = loc.lat;
+                if (loc.lat > maxLat) maxLat = loc.lat;
+                if (loc.lng < minLng) minLng = loc.lng;
+                if (loc.lng > maxLng) maxLng = loc.lng;
+            }
+            return {
+                bounds: new google.maps.LatLngBounds(
+                    { lat: minLat, lng: minLng },
+                    { lat: maxLat, lng: maxLng }
+                ),
+                minLat, maxLat, minLng, maxLng,
+            };
+        }
+
+        function fitAll() {
+            if (!mapInstance || locations.length === 0) return;
+            infoWindow.close();
+            setActive(-1);
+            const result = computeBounds(locations);
+            if (result) mapInstance.fitBounds(result.bounds);
+        }
+
+        // ──────────────────────────────────────
+        // ロケーション一覧パネル
+        // ──────────────────────────────────────
+        function renderLocList() {
+            const list = document.getElementById('loc-list');
+            const pageInfo = document.getElementById('page-info');
+            const btnPrev = document.getElementById('btn-prev');
+            const btnNext = document.getElementById('btn-next');
+            const totalPages = Math.ceil(locations.length / PAGE_SIZE);
+
+            list.innerHTML = '';
+            document.getElementById('loc-panel-title').textContent =
+                `Locations (${locations.length})`;
+
+            const startIdx = currentPage * PAGE_SIZE;
+            const slice = locations.slice(startIdx, startIdx + PAGE_SIZE);
+
+            slice.forEach((loc, i) => {
+                const absIdx = startIdx + i;
+                const lat = loc.lat.toFixed(4);
+                const lng = loc.lng.toFixed(4);
+                const codes = [loc.countryCode, loc.stateCode].filter(Boolean).join(' / ');
+
+                const div = document.createElement('div');
+                div.className = 'loc-item';
+                if (absIdx === activeIdx) div.classList.add('active');
+                div.innerHTML =
+                    `<span class="li-idx">${absIdx + 1}</span>` +
+                    `<span class="li-coords">${lat}, ${lng}</span>` +
+                    (codes ? `<span class="li-codes">${escHtml(codes)}</span>` : '');
+
+                div.addEventListener('click', () => {
+                    openInfoWindow(absIdx);
+                    // マーカーが画面外の場合はパンする
+                    if (markers[absIdx]) {
+                        mapInstance.panTo(markers[absIdx].getPosition());
+                    }
+                });
+                list.appendChild(div);
+            });
+
+            pageInfo.textContent = `${currentPage + 1} / ${totalPages}`;
+            btnPrev.disabled = currentPage === 0;
+            btnNext.disabled = currentPage >= totalPages - 1;
+        }
+
+        function changePage(delta) {
+            const totalPages = Math.ceil(locations.length / PAGE_SIZE);
+            currentPage = Math.max(0, Math.min(totalPages - 1, currentPage + delta));
+            renderLocList();
+        }
+
+        function toggleLocPanel() {
+            document.getElementById('loc-panel').classList.toggle('hidden');
+        }
+
+        function closeLocPanel() {
+            document.getElementById('loc-panel').classList.add('hidden');
+        }
+
+        // ──────────────────────────────────────
+        // JSONのパース・読み込み
+        // ──────────────────────────────────────
+        function parseLocations(data) {
+            // customCoordinates ラッパー形式
+            if (data && Array.isArray(data.customCoordinates)) {
+                return data.customCoordinates;
+            }
+            // 生配列形式
+            if (Array.isArray(data)) {
+                return data;
+            }
+            return null;
+        }
+
+        function loadLocations(locs) {
+            if (!mapInstance) {
+                alert('地図がまだ読み込まれていません。APIキーを確認してください。');
+                return;
+            }
+            if (locs.length === 0) {
+                alert('ロケーションが見つかりませんでした。');
+                return;
+            }
+
+            locations = locs;
+            activeIdx = -1;
+            currentPage = 0;
+
+            renderMarkers();
+            renderLocList();
+            updateInfoBar(locs);
+
+            document.getElementById('btn-fit').style.display = '';
+            document.getElementById('btn-list').style.display = '';
+            document.getElementById('loc-panel').classList.remove('hidden');
+        }
+
+        function updateInfoBar(locs) {
+            document.getElementById('info-count').textContent = `${locs.length} locations`;
+            document.getElementById('info-count').style.display = '';
+
+            // 国コード集計
+            const countries = [...new Set(locs.map(l => l.countryCode).filter(Boolean))].sort();
+            if (countries.length > 0) {
+                const label = countries.length <= 8
+                    ? countries.join(', ')
+                    : `${countries.slice(0, 8).join(', ')} … (+${countries.length - 8})`;
+                document.getElementById('info-countries').textContent = label;
+                document.getElementById('info-countries').style.display = '';
+            } else {
+                document.getElementById('info-countries').style.display = 'none';
+            }
+
+            // BBox
+            let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+            for (const loc of locs) {
+                if (loc.lat < minLat) minLat = loc.lat;
+                if (loc.lat > maxLat) maxLat = loc.lat;
+                if (loc.lng < minLng) minLng = loc.lng;
+                if (loc.lng > maxLng) maxLng = loc.lng;
+            }
+            const fmt = v => v.toFixed(2);
+            document.getElementById('info-bbox').textContent =
+                `bbox: ${fmt(minLat)}°, ${fmt(minLng)}° 〜 ${fmt(maxLat)}°, ${fmt(maxLng)}°`;
+            document.getElementById('info-bbox').style.display = '';
+        }
+
+        // ──────────────────────────────────────
+        // ファイル読み込み
+        // ──────────────────────────────────────
+        function readFile(file) {
+            if (!file) return;
+
+            document.getElementById('file-label').textContent = `📄 ${file.name}`;
+            document.getElementById('info-filename').textContent = file.name;
+            document.getElementById('info-count').style.display = 'none';
+            document.getElementById('info-countries').style.display = 'none';
+            document.getElementById('info-bbox').style.display = 'none';
+            document.getElementById('btn-fit').style.display = 'none';
+            document.getElementById('btn-list').style.display = 'none';
+            document.getElementById('loc-panel').classList.add('hidden');
+
+            const loading = document.getElementById('loading');
+            loading.classList.add('visible');
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                loading.classList.remove('visible');
+                let data;
+                try {
+                    data = JSON.parse(e.target.result);
+                } catch (err) {
+                    alert('JSONの解析に失敗しました: ' + err.message);
+                    return;
+                }
+
+                const locs = parseLocations(data);
+                if (!locs) {
+                    alert('対応している形式のJSONではありません。\n' +
+                        '{"customCoordinates":[...]} 形式か、ロケーションの配列が必要です。');
+                    return;
+                }
+
+                // lat/lng を持つオブジェクトのみ受け付け
+                const valid = locs.filter(l =>
+                    l && typeof l.lat === 'number' && typeof l.lng === 'number'
+                );
+                if (valid.length === 0) {
+                    alert('有効なロケーション（lat/lng）が見つかりませんでした。');
+                    return;
+                }
+                if (valid.length < locs.length) {
+                    console.warn(`${locs.length - valid.length} 件は lat/lng が不正なため除外しました。`);
+                }
+
+                // panoId が無い場合は空文字にフォールバック
+                valid.forEach(l => {
+                    if (!l.panoId) l.panoId = '';
+                    if (typeof l.heading !== 'number') l.heading = 0;
+                    if (typeof l.pitch !== 'number') l.pitch = 0;
+                    if (typeof l.zoom !== 'number') l.zoom = 0;
+                });
+
+                loadLocations(valid);
+            };
+            reader.readAsText(file);
+        }
+
+        // ファイル選択
+        document.getElementById('file-input').addEventListener('change', function () {
+            readFile(this.files[0]);
+            this.value = '';
+        });
+
+        // ドラッグ&ドロップ
+        const dropZone = document.getElementById('drop-zone');
+        const fileLabel = document.getElementById('file-label');
+
+        ['dragenter', 'dragover'].forEach(evt => {
+            dropZone.addEventListener(evt, e => {
+                e.preventDefault();
+                fileLabel.classList.add('dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+            dropZone.addEventListener(evt, e => {
+                e.preventDefault();
+                fileLabel.classList.remove('dragover');
+            });
+        });
+        dropZone.addEventListener('drop', function (e) {
+            const file = e.dataTransfer.files[0];
+            if (file) readFile(file);
+        });
+
+        // ──────────────────────────────────────
+        // ユーティリティ
+        // ──────────────────────────────────────
+        function escHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // ──────────────────────────────────────
+        // 起動処理
+        // ──────────────────────────────────────
+        (function init() {
+            const key = getStoredApiKey();
+            if (key) {
+                document.getElementById('api-setup').classList.add('hidden');
+                loadMapsApi(key);
+            }
+        })();
+    </script>
+</body>
+
+</html>
