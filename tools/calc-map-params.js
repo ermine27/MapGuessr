@@ -67,8 +67,8 @@ function findMinimalLongitudeBounds(locations) {
 // --- 引数の解析 ---
 const args = process.argv.slice(2);
 if (args.length < 2) {
-    console.error("Usage: node calc-scale.js <map-file.json> <K>");
-    console.error("  例: node calc-scale.js ../docs/maps/Japan-1000-locations.json 12");
+    console.error("Usage: node calc-map-params.js <map-file.json> <K>");
+    console.error("  例: node calc-map-params.js ../docs/maps/Japan-1000-locations.json 12");
     process.exit(1);
 }
 

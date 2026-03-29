@@ -1,6 +1,6 @@
-# calc-scale.js
+# calc-map-params.js
 
-MapGuessr のマップデータから、スコア計算式のスケール定数 `S` を推定する Node.js スクリプトです。
+MapGuessr のマップデータから、スコア計算式のスケール定数 `S` と `map-list.json` 用のパラメータを算出する Node.js スクリプトです。
 
 ## 概要
 
@@ -10,7 +10,7 @@ $$
 score = 5000 \cdot e^{-\frac{distance}{S}}
 $$
 
-このツールは、マップごとに異なる広さを考慮して `S` を決めるために使います。
+このツールは、マップごとに異なる広さを考慮して `S`・`mapCenter`・`mapZoom` を決めるために使います。
 
 1. マップJSONを読み込む
 2. 最北端・最南端・最東端・最西端の4点を求める
@@ -43,13 +43,13 @@ $$
 `tools` ディレクトリ配下で実行する例:
 
 ```bash
-node calc-scale.js ../docs/maps/Japan-1000-locations.json 12
+node calc-map-params.js ../docs/maps/Japan-1000-locations.json 12
 ```
 
 リポジトリルートから実行する例:
 
 ```bash
-node tools/calc-scale.js docs/maps/Japan-1000-locations.json 12
+node tools/calc-map-params.js docs/maps/Japan-1000-locations.json 12
 ```
 
 引数:
@@ -64,7 +64,7 @@ node tools/calc-scale.js docs/maps/Japan-1000-locations.json 12
 - `Dmax`（暫定の最大距離）
 - `S = Dmax / K`
 - スコアプレビュー（5000点、4999点、4990点...1点、0点）
-- `script.js` に設定する目安値（丸め値と小数値）
+- `map-list.json` に貼り付けるスニペット
 
 ## 感度係数 K とは
 
