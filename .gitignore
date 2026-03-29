@@ -1,1 +1,8 @@
 note/
+tools/output/**
+!tools/output/
+!tools/output/areas/
+!tools/output/maps/
+!tools/output/.gitkeep
+!tools/output/areas/.gitkeep
+!tools/output/maps/.gitkeep
