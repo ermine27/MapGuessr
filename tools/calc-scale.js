@@ -16,6 +16,54 @@ function haversineKm(lat1, lng1, lat2, lng2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function normalizeLng360(lng) {
+    return ((lng % 360) + 360) % 360;
+}
+
+function normalizeLng180(lng) {
+    const normalized = normalizeLng360(lng);
+    return normalized > 180 ? normalized - 360 : normalized;
+}
+
+function findMinimalLongitudeBounds(locations) {
+    const points = locations
+        .map((loc) => ({ ...loc, lng360: normalizeLng360(loc.lng) }))
+        .sort((a, b) => a.lng360 - b.lng360);
+
+    let maxGap = -Infinity;
+    let maxGapIndex = -1;
+
+    for (let i = 0; i < points.length; i++) {
+        const current = points[i].lng360;
+        const next = i === points.length - 1 ? points[0].lng360 + 360 : points[i + 1].lng360;
+        const gap = next - current;
+
+        if (gap > maxGap) {
+            maxGap = gap;
+            maxGapIndex = i;
+        }
+    }
+
+    const westIndex = (maxGapIndex + 1) % points.length;
+    const eastIndex = maxGapIndex;
+    const westPoint = points[westIndex];
+    const eastPoint = points[eastIndex];
+    const westLng360 = westPoint.lng360;
+    let eastLng360 = eastPoint.lng360;
+
+    if (eastLng360 < westLng360) {
+        eastLng360 += 360;
+    }
+
+    return {
+        westPoint,
+        eastPoint,
+        westLng360,
+        eastLng360,
+        lngSpan: eastLng360 - westLng360
+    };
+}
+
 // --- 引数の解析 ---
 const args = process.argv.slice(2);
 if (args.length < 2) {
@@ -62,8 +110,8 @@ console.log(`地点数         : ${locations.length}`);
 // --- バウンディングボックスの端点 ---
 let north = -Infinity,
     south = Infinity,
-    east = -Infinity,
-    west = Infinity;
+    east,
+    west;
 let northPt, southPt, eastPt, westPt;
 
 for (const loc of locations) {
@@ -75,15 +123,25 @@ for (const loc of locations) {
         south = loc.lat;
         southPt = loc;
     }
-    if (loc.lng > east) {
-        east = loc.lng;
-        eastPt = loc;
-    }
-    if (loc.lng < west) {
-        west = loc.lng;
-        westPt = loc;
-    }
 }
+
+const longitudeBounds = findMinimalLongitudeBounds(locations);
+west = normalizeLng180(longitudeBounds.westLng360);
+east = normalizeLng180(longitudeBounds.eastLng360);
+westPt = longitudeBounds.westPoint;
+eastPt = longitudeBounds.eastPoint;
+
+// バウンディングボックスの中心座標を算出
+const latSpan = north - south;
+const lngSpan = longitudeBounds.lngSpan;
+
+const centerLat = (north + south) / 2;
+const centerLng = normalizeLng180(longitudeBounds.westLng360 + lngSpan / 2);
+
+// ズームレベル算出（バウンディングボックスが1タイルに収まる最大ズーム）
+const zoomByLng = Math.log2(360 / lngSpan);
+const zoomByLat = Math.log2(180 / latSpan);
+const mapZoom = Math.max(1, Math.round(Math.min(zoomByLng, zoomByLat)));
 
 // 4端点からDmaxを計算（全組み合わせの最大値を採用）
 const extremes = [northPt, southPt, eastPt, westPt];
@@ -148,5 +206,15 @@ for (let i = 0; i < previewScores.length; i++) {
     }
 }
 
-console.log(`\n--- script.js に設定する値 ---`);
-console.log(`  S = ${Math.round(S)}  (${S.toFixed(2)})`);
+// map-list.json 用スニペット出力
+const mapKey = path.basename(mapFilePath, ".json");
+console.log("\n--- map-list.json 用スニペット ---");
+console.log(`    {`);
+console.log(`        "key": "${mapKey}",`);
+console.log(`        "nameJa": "マップタイトル",`);
+console.log(`        "description": "マップの説明",`);
+console.log(`        "scaleS": ${Math.round(S)},`);
+console.log(`        "locationCount": ${locations.length},`);
+console.log(`        "mapCenter": { "lat": ${centerLat.toFixed(4)}, "lng": ${centerLng.toFixed(4)} },`);
+console.log(`        "mapZoom": ${mapZoom}`);
+console.log(`    },`);

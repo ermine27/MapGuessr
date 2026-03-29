@@ -1,0 +1,29 @@
+[
+    {
+        "key": "japan-50k",
+        "nameJa": "日本 50K locations",
+        "description": "日本全国のストリートビューロケーション。一般道から酷道まで幅広く収録。",
+        "scaleS": 208,
+        "locationCount": 50000,
+        "mapCenter": { "lat": 34.8871, "lng": 134.7679 },
+        "mapZoom": 3
+    },
+    {
+        "key": "usa-5k",
+        "nameJa": "アメリカ 5K locations",
+        "description": "アメリカ合衆国のストリートビューロケーション。都市部から田舎まで幅広く収録。",
+        "scaleS": 554,
+        "locationCount": 5000,
+        "mapCenter": { "lat": 41.7258, "lng": -141.1659 },
+        "mapZoom": 1
+    },
+    {
+        "key": "Japan-1000-locations",
+        "nameJa": "日本 1000 locations",
+        "description": "日本全国のストリートビューロケーション。一般道から酷道まで幅広く収録。",
+        "scaleS": 325,
+        "locationCount": 1000,
+        "mapCenter": { "lat": 36, "lng": 138 },
+        "mapZoom": 5
+    }
+]
