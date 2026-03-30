@@ -250,26 +250,34 @@ function fetchMetadata(lat, lng, apiKey, radius) {
 
 let progressStartTime = Date.now();
 
+function formatTime(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 function showProgress(collected, total, attempts) {
     const pct = (collected / total * 100).toFixed(1);
     const successRate = attempts > 0 ? (collected / attempts * 100).toFixed(1) : "0.0";
+    const elapsed = (Date.now() - progressStartTime) / 1000;
 
-    let eta = "--";
+    const totalLen = String(total).length;
+    const collectedStr = String(collected).padStart(totalLen + 2);
+
+    let etaStr = "--:--:--";
     if (collected > 0) {
-        const elapsed = (Date.now() - progressStartTime) / 1000;
-        const secPerLoc = elapsed / collected;
-        const remaining = (total - collected) * secPerLoc;
-        eta = remaining < 60 ? `${remaining.toFixed(0)}s`
-            : remaining < 3600 ? `${(remaining / 60).toFixed(1)}m`
-                : `${(remaining / 3600).toFixed(1)}h`;
+        const remaining = (elapsed / collected) * (total - collected);
+        etaStr = formatTime(remaining);
     }
 
     const line =
-        `[${collected}/${total} (${pct}%)]` +
-        `  attempts: ${attempts}` +
-        `  success: ${successRate}%` +
-        `  ETA: ${eta}`;
-    process.stdout.write("\r" + line.padEnd(80));
+        `[${collectedStr} / ${total}] ${pct}%` +
+        `  試行: ${attempts.toLocaleString('en-US')}` +
+        `  成功率: ${successRate}%` +
+        `  経過: ${formatTime(elapsed)}` +
+        `  残り予測: ${etaStr}`;
+    process.stdout.write("\r\x1b[K" + line);
 }
 
 // ──────────────────────────────────────────
