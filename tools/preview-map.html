@@ -565,9 +565,6 @@
         // ──────────────────────────────────────
         // マーカー描画
         // ──────────────────────────────────────
-        const ICON_NORMAL = { path: google.maps && google.maps.SymbolPath ? google.maps.SymbolPath.CIRCLE : 0, scale: 5, fillColor: '#29b6f6', fillOpacity: 0.85, strokeColor: '#ffffff', strokeWeight: 1 };
-        const ICON_ACTIVE = { path: 0 /* CIRCLE */, scale: 7, fillColor: '#f9a825', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 1.5 };
-
         function makeIcon(active) {
             return {
                 path: google.maps.SymbolPath.CIRCLE,
