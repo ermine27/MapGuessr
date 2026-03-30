@@ -96,6 +96,20 @@ tools/
 
 標準モジュールのみ（`fs`, `path`）。外部依存なし。
 
+### Natural Earth データについて
+
+| 項目 | 内容 |
+|---|---|
+| **参照元** | [Natural Earth](https://www.naturalearthdata.com/downloads/10m-cultural-vectors/) — 10m Cultural Vectors |
+| **権利情報** | パブリックドメイン（[Natural Earth ライセンス](https://www.naturalearthdata.com/about/terms-of-use/)） |
+
+リポジトリに同梱しているファイル:
+
+| ファイル | 説明 |
+|---|---|
+| `ne_10m_admin_0_countries.geojson` | 国境ポリゴン。世界の国・地域を収録し、各フィーチャーが1つの国または地域に対応 |
+| `ne_10m_admin_1_states_provinces.geojson` | 州・都道府県境ポリゴン。世界各国の第一行政区画（州・都道府県など）を収録 |
+
 ### 使用する Natural Earth プロパティ
 
 **`ne_10m_admin_0_countries.geojson`（国）**
@@ -106,6 +120,8 @@ tools/
 | `NAME`, `NAME_EN` | 国名（`ISO_A2=-99` のフォールバック検索用） |
 | `CONTINENT` | 大陸名（`list continents` / `continent` モードで使用） |
 | `SUBREGION` | 地域名（出力プロパティに含める） |
+
+> **ISO 3166-1 alpha-2** は国を識別す2文字のアルファベットコード（例: `JP` = 日本、`US` = アメリカ合衆国）。ISO（国際標準化機構）が定める国際規格。
 
 **`ne_10m_admin_1_states_provinces.geojson`（州）**
 
@@ -186,6 +202,12 @@ pointInGeometry(lat, lng, geometry)
   MultiPolygon → polygons.some(polygon => Polygon 判定)
 ```
 
+### GeoJSON フィーチャーとバウンディングボックス
+
+**フィーチャー (Feature)** は GeoJSON の基本単位で、ジオメトリ（ポリゴン）とそのプロパティを持つオブジェクトです。`extract-area.js` が出力する GeoJSON は `FeatureCollection` 形式で、複数のフィーチャーを配列として持ちます。例えば `continent Asia` で抽出したファイルには国ごとに1つのフィーチャーが含まれ、`generate-map.js` はこれらから重み付きでサンプリング先を選択します。
+
+**バウンディングボックス (Bounding Box / BBox)** は、フィーチャーのジオメトリを包む最小の矩形領域です。`minLat`・`maxLat`・`minLng`・`maxLng` の4値で定義されます。ランダム点のサンプリング時に、ませBBox内の点を生成してから PIP テストで絞り込むことで、複雑な形状のポリゴン内の点を効率的に得られます。
+
 ### 重み付きフィーチャー選択
 
 大陸 GeoJSON（多数フィーチャー）でも国ごとのフィーチャーから均等にサンプリングするため、**バウンディングボックス面積**に比例した確率でフィーチャーを選択します。
@@ -198,6 +220,17 @@ table[i].cumulative = Σ(area[0..i]) / totalArea
 ```
 
 > BBox面積ベースのため、細長い国（チリなど）と正方形に近い国（フランスなど）で面積が正確には対応しませんが、実用上は十分です。
+
+### Haversine 距離計算
+
+球面上の2点間の大圈距離を求める計算式で、`--min-distance` による近接除外に使用しています。
+
+$$d = 2R \cdot \arcsin\!\left(\sqrt{\sin^2\!\frac{\Delta\phi}{2} + \cos\phi_1\cos\phi_2\sin^2\!\frac{\Delta\lambda}{2}}\right)$$
+
+- $R = 6371\,\text{km}$（地球半径の近似値）
+- $\phi$: 緯度（ラジアン）、$\lambda$: 経度（ラジアン）
+
+楕円体補正は行わず、球体近似を使用しています。数千 km スケールの距離でも誤差 0.5% 未満であり、マップ生成用途には十分な精度です。
 
 ### Street View Metadata API
 
@@ -223,7 +256,7 @@ GET https://maps.googleapis.com/maps/api/streetview/metadata
 
 - `status === "REQUEST_DENIED"` / `"OVER_QUERY_LIMIT"` → 即エラー終了
 - その他 `status !== "OK"` → スキップ
-- `--official-only` 時: `copyright.toLowerCase().includes("google")` が false → スキップ
+- `--official-only` 時: 著作権表示に “Google” が含まれていないパノラマはスキップ（Google オフィシャルのパノラマのみ採用）
 - **APIコスト: 無料**（Street View Static API の Metadata エンドポイントは課金対象外）
 
 ### レート制限
