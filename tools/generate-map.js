@@ -21,7 +21,8 @@ function parseArgs(argv) {
         concurrency: 5,
         saveInterval: 100,
         resume: null,
-        maxConsecutiveFail: 0,  // 0 = 無制限        states: null,
+        maxConsecutiveFail: 0,  // 0 = 無制限
+        states: null,
         noState: false,
     };
 
@@ -260,21 +261,45 @@ function percentile95(arr) {
 // 州境ルックアップ（bbox 事前フィルタ付き PIP）
 // ──────────────────────────────────────────
 
-/** 州境GeoJSONのフィーチャーごとに bbox を付加したルックアップテーブルを構築 */
+/**
+ * 州境GeoJSONを国コード別のルックアップテーブルに変換。
+ * `code_hasc` / `hasc` を持つ有効な Admin-1 フィーチャーのみ保持する。
+ */
 function buildStateLookupTable(features) {
-    return features
-        .filter(f => f.geometry &&
-            (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon"))
-        .map(f => ({ feature: f, bbox: computeBbox(f.geometry) }));
+    const byCountry = new Map();
+
+    for (const feature of features) {
+        const geom = feature.geometry;
+        const props = feature.properties || {};
+        if (!geom || (geom.type !== "Polygon" && geom.type !== "MultiPolygon")) continue;
+
+        const countryCode = (props.iso_a2 || props.ISO_A2 || "").toUpperCase();
+        const stateCode = props.code_hasc || props.hasc || null;
+        if (!countryCode || !stateCode) continue;
+
+        const entry = {
+            feature,
+            bbox: computeBbox(geom),
+            stateCode,
+        };
+
+        if (!byCountry.has(countryCode)) byCountry.set(countryCode, []);
+        byCountry.get(countryCode).push(entry);
+    }
+
+    return byCountry;
 }
 
-/** ルックアップテーブルから stateCode (code_hasc) を検索。見つからなければ null */
-function findStateCode(lat, lng, table) {
-    for (const entry of table) {
+/** 国コードに対応する州境だけを対象に stateCode を検索。見つからなければ null */
+function findStateCode(lat, lng, countryCode, stateTable) {
+    if (!stateTable || !countryCode) return null;
+
+    const entries = stateTable.get(countryCode.toUpperCase()) || [];
+    for (const entry of entries) {
         const { minLat, maxLat, minLng, maxLng } = entry.bbox;
         if (lat < minLat || lat > maxLat || lng < minLng || lng > maxLng) continue;
         if (pointInGeometry(lat, lng, entry.feature.geometry)) {
-            return entry.feature.properties.code_hasc || null;
+            return entry.stateCode;
         }
     }
     return null;
@@ -453,10 +478,14 @@ async function main() {
     }
 
     // 起動情報表示
+    const stateFeatureCount = stateTable
+        ? Array.from(stateTable.values()).reduce((sum, entries) => sum + entries.length, 0)
+        : 0;
+
     console.log(`エリア:          ${areaBaseName} (${features.length} フィーチャー)`);
     console.log(`目標:            ${args.count} ロケーション（収集済み: ${collected.length}）`);
     console.log(`設定:            concurrency=${args.concurrency}, official-only=${args.officialOnly}, min-distance=${args.minDistance}km, radius=${args.radius}m`);
-    console.log(`stateCode PIP:   ${stateTable ? `有効 (${stateTable.length} フィーチャー)` : "無効"}`);
+    console.log(`stateCode PIP:   ${stateTable ? `有効 (${stateFeatureCount} フィーチャー / ${stateTable.size} ヶ国)` : "無効"}`);
     console.log(`出力:            ${outputPath}`);
     console.log(`チェックポイント: ${tmpPath}`);
     console.log("");
@@ -548,7 +577,9 @@ async function main() {
             const props = candidate.feature.properties || {};
             const countryCode = (props.iso_a2 && props.iso_a2 !== "-99") ? props.iso_a2 : null;
             // 州境GeoJSONで実際のパノラマ座標に対して PIP 検索
-            const stateCode = stateTable ? findStateCode(lat, lng, stateTable) : null;
+            const stateCode = stateTable
+                ? findStateCode(lat, lng, countryCode, stateTable)
+                : (props.code_hasc || props.hasc || null);
 
             collected.push({
                 panoId: meta.pano_id,
