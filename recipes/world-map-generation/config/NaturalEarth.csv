@@ -1,0 +1,119 @@
+NAME	NAME_JP	CONTINENT	count	percent	min_distance_km
+France	フランス	Europe	900	2.252%	20
+Norway	ノルウェー	Europe	700	1.752%	20
+Andorra	アンドラ	Europe	30	0.075%	10
+United Arab Emirates	アラブ首長国連邦	Asia	100	0.250%	10
+Albania	アルバニア	Europe	100	0.250%	20
+Antarctica	南極	Antarctica	0	0.038%	10
+Argentina	アルゼンチン	South America	1400	3.503%	20
+American Samoa	米領サモア	Oceania	15	0.038%	3
+Austria	オーストリア	Europe	300	0.751%	15
+Australia	オーストラリア	Oceania	2050	5.129%	20
+Åland	オーランド諸島	Europe	50	0.125%	5
+Bosnia and Herz.	ボスニア・ヘルツェゴビナ	Europe	100	0.250%	20
+Bangladesh	バングラデシュ	Asia	250	0.626%	20
+Belgium	ベルギー	Europe	200	0.500%	20
+Bulgaria	ブルガリア	Europe	300	0.751%	20
+Bermuda	バミューダ	North America	30	0.075%	3
+Bolivia	ボリビア	South America	200	0.500%	15
+Brazil	ブラジル	South America	2200	5.505%	20
+Bhutan	ブータン	Asia	150	0.375%	15
+Botswana	ボツワナ	Africa	200	0.500%	15
+Canada	カナダ	North America	1500	3.753%	20
+Switzerland	スイス	Europe	200	0.500%	15
+Chile	チリ	South America	900	2.252%	20
+Taiwan	台湾	Asia	250	0.626%	15
+Colombia	コロンビア	South America	900	2.252%	15
+Costa Rica	コスタリカ	North America	150	0.375%	10
+Curaçao	キュラソー	North America	20	0.050%	3
+Cyprus	キプロス	Asia	0	0.000%	1000
+Czechia	チェコ	Europe	350	0.876%	15
+Germany	ドイツ	Europe	500	1.251%	20
+Denmark	デンマーク	Europe	300	0.751%	20
+Dominican Rep.	ドミニカ共和国	North America	150	0.375%	10
+Ecuador	エクアドル	South America	200	0.500%	20
+Estonia	エストニア	Europe	200	0.500%	20
+Spain	スペイン	Europe	650	1.626%	20
+Finland	フィンランド	Europe	350	0.876%	20
+Faeroe Is.	フェロー諸島	Europe	30	0.075%	3
+United Kingdom	イギリス	Europe	780	1.952%	15
+Ghana	ガーナ	Africa	250	0.626%	20
+Gibraltar	ジブラルタル	Europe	15	0.038%	1
+Greenland	グリーンランド	North America	0	0.050%	5
+Greece	ギリシャ	Europe	250	0.626%	15
+Guatemala	グアテマラ	North America	150	0.375%	10
+Guam	グアム	Oceania	30	0.075%	5
+Hong Kong	中華人民共和国香港特別行政区	Asia	30	0.075%	3
+Croatia	クロアチア	Europe	250	0.626%	15
+Hungary	ハンガリー	Europe	300	0.751%	20
+Indonesia	インドネシア	Asia	1050	2.627%	20
+Ireland	アイルランド	Europe	250	0.626%	20
+Israel	イスラエル	Asia	120	0.300%	10
+Isle of Man	マン島	Europe	30	0.075%	5
+India	インド	Asia	1000	2.502%	20
+Iceland	アイスランド	Europe	200	0.500%	20
+Italy	イタリア	Europe	450	1.126%	20
+Jersey	ジャージー	Europe	20	0.050%	3
+Jordan	ヨルダン	Asia	150	0.375%	20
+Japan	日本	Asia	1300	3.253%	20
+Kenya	ケニア	Africa	350	0.876%	20
+Kyrgyzstan	キルギス	Asia	150	0.375%	20
+Cambodia	カンボジア	Asia	300	0.751%	20
+South Korea	韓国	Asia	250	0.626%	20
+Kazakhstan	カザフスタン	Asia	200	0.500%	20
+Laos	ラオス	Asia	150	0.375%	15
+Lebanon	レバノン	Asia	0	0.000%	1000
+Liechtenstein	リヒテンシュタイン	Europe	100	0.250%	2
+Sri Lanka	スリランカ	Asia	150	0.375%	15
+Lesotho	レソト	Africa	80	0.200%	5
+Lithuania	リトアニア	Europe	200	0.500%	15
+Luxembourg	ルクセンブルク	Europe	100	0.250%	2
+Latvia	ラトビア	Europe	200	0.500%	15
+Monaco	モナコ	Europe	20	0.050%	1
+Montenegro	モンテネグロ	Europe	100	0.250%	15
+Madagascar	マダガスカル	Africa	0	0.000%	1000
+North Macedonia	北マケドニア	Europe	100	0.250%	15
+Mongolia	モンゴル	Asia	150	0.375%	20
+Macao	中華人民共和国マカオ特別行政区	Asia	20	0.050%	1
+N. Mariana Is.	北マリアナ諸島	Oceania	30	0.075%	5
+Malta	マルタ	Europe	30	0.075%	3
+Mexico	メキシコ	North America	1500	3.753%	20
+Malaysia	マレーシア	Asia	200	0.500%	20
+Namibia	ナミビア	Africa	100	0.250%	20
+Nigeria	ナイジェリア	Africa	250	0.626%	20
+Netherlands	オランダ	Europe	150	0.375%	15
+Nepal	ネパール	Asia	50	0.125%	15
+New Zealand	ニュージーランド	Oceania	250	0.626%	20
+Oman	オマーン	Asia	100	0.250%	15
+Panama	パナマ	North America	250	0.626%	10
+Peru	ペルー	South America	750	1.877%	20
+Philippines	フィリピン	Asia	750	1.877%	20
+Poland	ポーランド	Europe	300	0.751%	20
+Puerto Rico	プエルトリコ	North America	100	0.250%	10
+Palestine	パレスチナ自治区	Asia	50	0.125%	3
+Portugal	ポルトガル	Europe	225	0.563%	15
+Paraguay	パラグアイ	South America	100	0.250%	10
+Qatar	カタール	Asia	80	0.200%	5
+Romania	ルーマニア	Europe	350	0.876%	20
+Serbia	セルビア	Europe	150	0.375%	20
+Russia	ロシア	Europe	1600	4.004%	20
+Rwanda	ルワンダ	Africa	50	0.125%	5
+Sweden	スウェーデン	Europe	400	1.001%	20
+Singapore	シンガポール	Asia	30	0.075%	2
+Slovenia	スロベニア	Europe	200	0.500%	15
+Slovakia	スロバキア	Europe	250	0.626%	20
+San Marino	サンマリノ	Europe	15	0.038%	1
+Senegal	セネガル	Africa	150	0.375%	15
+São Tomé and Principe	サントメ・プリンシペ	Africa	10	0.025%	1
+eSwatini	エスワティニ	Africa	50	0.125%	2
+Thailand	タイ	Asia	800	2.002%	20
+Tunisia	チュニジア	Africa	100	0.250%	20
+Turkey	トルコ	Asia	800	2.002%	20
+Ukraine	ウクライナ	Europe	250	0.626%	20
+Uganda	ウガンダ	Africa	60	0.150%	3
+United States of America	アメリカ合衆国	North America	2850	7.131%	20
+Uruguay	ウルグアイ	South America	150	0.375%	20
+British Virgin Is.	英領ヴァージン諸島	North America	0	0.038%	1
+U.S. Virgin Is.	米領ヴァージン諸島	North America	15	0.038%	1
+Vietnam	ベトナム	Asia	350	0.876%	15
+South Africa	南アフリカ	Africa	850	2.127%	20
