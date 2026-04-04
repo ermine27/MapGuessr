@@ -21,7 +21,8 @@ function parseArgs(argv) {
         concurrency: 5,
         saveInterval: 100,
         resume: null,
-        maxConsecutiveFail: 0,  // 0 = 無制限
+        maxConsecutiveFail: 0,  // 0 = 無制限        states: null,
+        noState: false,
     };
 
     for (let i = 0; i < argv.length; i++) {
@@ -37,6 +38,8 @@ function parseArgs(argv) {
             case "--save-interval": args.saveInterval = parseInt(argv[++i], 10); break;
             case "--resume": args.resume = argv[++i]; break;
             case "--max-consecutive-fail": args.maxConsecutiveFail = parseInt(argv[++i], 10); break;
+            case "--states": args.states = argv[++i]; break;
+            case "--no-state": args.noState = true; break;
             case "--help":
             case "-h":
                 printUsage();
@@ -64,6 +67,9 @@ function printUsage() {
   --concurrency <n>      並列リクエスト数（デフォルト: 5）
   --save-interval <n>    チェックポイント保存間隔（デフォルト: 100）
   --resume <path>        チェックポイントファイルから再開
+  --states <path>        州境GeoJSONパス
+                       （省略時: tools/areas/ne_10m_admin_1_states_provinces.geojson）
+  --no-state             stateCode の設定をスキップする
 
 例:
     node generate-map.js --area tools/output/areas/jp.geojson --count 1000
@@ -251,6 +257,30 @@ function percentile95(arr) {
 }
 
 // ──────────────────────────────────────────
+// 州境ルックアップ（bbox 事前フィルタ付き PIP）
+// ──────────────────────────────────────────
+
+/** 州境GeoJSONのフィーチャーごとに bbox を付加したルックアップテーブルを構築 */
+function buildStateLookupTable(features) {
+    return features
+        .filter(f => f.geometry &&
+            (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon"))
+        .map(f => ({ feature: f, bbox: computeBbox(f.geometry) }));
+}
+
+/** ルックアップテーブルから stateCode (code_hasc) を検索。見つからなければ null */
+function findStateCode(lat, lng, table) {
+    for (const entry of table) {
+        const { minLat, maxLat, minLng, maxLng } = entry.bbox;
+        if (lat < minLat || lat > maxLat || lng < minLng || lng > maxLng) continue;
+        if (pointInGeometry(lat, lng, entry.feature.geometry)) {
+            return entry.feature.properties.code_hasc || null;
+        }
+    }
+    return null;
+}
+
+// ──────────────────────────────────────────
 // Street View Metadata API
 // ──────────────────────────────────────────
 
@@ -403,10 +433,30 @@ async function main() {
         process.exit(0);
     }
 
+    // 州境GeoJSON読み込み
+    let stateTable = null;
+    if (!args.noState) {
+        const scriptDir = path.dirname(path.resolve(process.argv[1]));
+        const statesPath = args.states
+            ? path.resolve(args.states)
+            : path.join(scriptDir, "areas", "ne_10m_admin_1_states_provinces.geojson");
+        if (!fs.existsSync(statesPath)) {
+            console.warn(`警告: 州境GeoJSONが見つかりません。stateCode は null になります: ${statesPath}`);
+        } else {
+            try {
+                const statesData = JSON.parse(fs.readFileSync(statesPath, "utf8"));
+                stateTable = buildStateLookupTable(statesData.features);
+            } catch (e) {
+                console.warn(`警告: 州境GeoJSONの読み込みに失敗しました。stateCode は null になります: ${e.message}`);
+            }
+        }
+    }
+
     // 起動情報表示
     console.log(`エリア:          ${areaBaseName} (${features.length} フィーチャー)`);
     console.log(`目標:            ${args.count} ロケーション（収集済み: ${collected.length}）`);
     console.log(`設定:            concurrency=${args.concurrency}, official-only=${args.officialOnly}, min-distance=${args.minDistance}km, radius=${args.radius}m`);
+    console.log(`stateCode PIP:   ${stateTable ? `有効 (${stateTable.length} フィーチャー)` : "無効"}`);
     console.log(`出力:            ${outputPath}`);
     console.log(`チェックポイント: ${tmpPath}`);
     console.log("");
@@ -494,10 +544,11 @@ async function main() {
                 continue;
             }
 
-            // フィーチャーのプロパティから国コード・州コードを取得
+            // フィーチャーのプロパティから国コードを取得
             const props = candidate.feature.properties || {};
             const countryCode = (props.iso_a2 && props.iso_a2 !== "-99") ? props.iso_a2 : null;
-            const stateCode = props.code_hasc || null;
+            // 州境GeoJSONで実際のパノラマ座標に対して PIP 検索
+            const stateCode = stateTable ? findStateCode(lat, lng, stateTable) : null;
 
             collected.push({
                 panoId: meta.pano_id,
