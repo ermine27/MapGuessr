@@ -123,10 +123,12 @@ function toFeatureCollection(features) {
 }
 
 // country プロパティのスリム化（大文字キーを正規化）
-function slimCountryProps(p) {
+function slimCountryProps(p, isoOverride) {
+    let iso = isoOverride || p.ISO_A2 || p.iso_a2 || "";
+    if (iso === "-99") iso = "";      // 不正値は空文字に
     return {
         name: p.NAME || p.name || "",
-        iso_a2: p.ISO_A2 || p.iso_a2 || "",
+        iso_a2: iso,
         continent: p.CONTINENT || p.continent || "",
         subregion: p.SUBREGION || p.subregion || "",
     };
@@ -143,24 +145,43 @@ function slimStateProps(p) {
     };
 }
 
+// ISO_A2 が -99 の国: ISO コード → NAME のフォールバックマップ
+const COUNTRY_NAME_FALLBACKS = new Map([
+    ["FR", "France"],
+    ["NO", "Norway"],
+    ["CN-TW", "Taiwan"],
+]);
+
 // ------- country モード -------
 function runCountry(args) {
     const isoCode = args.identifier.toUpperCase();
     const filePath = path.join(args.areasDir, "ne_10m_admin_0_countries.geojson");
     const data = loadGeoJson(filePath);
 
+    let isoOverride = undefined;
+
     // ISO_A2 で一致検索
     let features = data.features.filter(
         f => (f.properties.ISO_A2 || "").toUpperCase() === isoCode
     );
 
-    // ISO_A2 が "-99" のなどでヒットしない場合、NAME または NAME_EN でフォールバック
+    // ISO_A2 でヒットしない場合のフォールバック
+    if (features.length === 0) {
+        // 1. ISO_A2=-99 の既知国: NAME で検索
+        const fallbackName = COUNTRY_NAME_FALLBACKS.get(isoCode);
+        if (fallbackName) {
+            isoOverride = isoCode;
+            features = data.features.filter(f =>
+                f.properties.NAME === fallbackName || f.properties.NAME_EN === fallbackName
+            );
+        }
+    }
+
+    // 2. それでもヒットしない場合、NAME/NAME_EN で直接検索（国名入力対応）
     if (features.length === 0) {
         features = data.features.filter(f => {
             const p = f.properties;
-            return (
-                (p.NAME_EN || p.NAME || "").toUpperCase() === isoCode
-            );
+            return (p.NAME_EN || p.NAME || "").toUpperCase() === isoCode;
         });
     }
 
@@ -172,7 +193,7 @@ function runCountry(args) {
 
     const slim = features.map(f => ({
         type: "Feature",
-        properties: slimCountryProps(f.properties),
+        properties: slimCountryProps(f.properties, isoOverride),
         geometry: f.geometry,
     }));
 
@@ -313,13 +334,25 @@ function runList(args) {
     if (subMode === "countries") {
         const filePath = path.join(args.areasDir, "ne_10m_admin_0_countries.geojson");
         const data = loadGeoJson(filePath);
+        // NAME → 正しい ISO コードの逆引きマップ（ISO_A2=-99 の国の補正用）
+        const nameToIso = new Map();
+        for (const [code, name] of COUNTRY_NAME_FALLBACKS) {
+            nameToIso.set(name, code);
+        }
         console.log("国一覧 (ISO_A2 | NAME | CONTINENT):");
         data.features
-            .map(f => f.properties)
-            .sort((a, b) => (a.ISO_A2 || "").localeCompare(b.ISO_A2 || ""))
+            .map(f => {
+                const p = f.properties;
+                let iso = p.ISO_A2 || "";
+                if (iso === "-99") {
+                    iso = nameToIso.get(p.NAME) || nameToIso.get(p.NAME_EN) || "-99";
+                }
+                return { _iso: iso, NAME: p.NAME, CONTINENT: p.CONTINENT };
+            })
+            .sort((a, b) => a._iso.localeCompare(b._iso))
             .forEach(p => {
                 console.log(
-                    `  ${String(p.ISO_A2 || "(none)").padEnd(5)} | ` +
+                    `  ${String(p._iso || "(none)").padEnd(5)} | ` +
                     `${String(p.NAME || "").padEnd(36)} | ` +
                     `${p.CONTINENT || ""}`
                 );
