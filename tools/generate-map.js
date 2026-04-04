@@ -21,6 +21,7 @@ function parseArgs(argv) {
         concurrency: 5,
         saveInterval: 100,
         resume: null,
+        maxConsecutiveFail: 0,  // 0 = 無制限
     };
 
     for (let i = 0; i < argv.length; i++) {
@@ -35,6 +36,7 @@ function parseArgs(argv) {
             case "--concurrency": args.concurrency = parseInt(argv[++i], 10); break;
             case "--save-interval": args.saveInterval = parseInt(argv[++i], 10); break;
             case "--resume": args.resume = argv[++i]; break;
+            case "--max-consecutive-fail": args.maxConsecutiveFail = parseInt(argv[++i], 10); break;
             case "--help":
             case "-h":
                 printUsage();
@@ -155,13 +157,22 @@ function pointInGeometry(lat, lng, geometry) {
 // 重み付きフィーチャー選択
 // ──────────────────────────────────────────
 
-/** フィーチャーごとのバウンディングボックス面積に比例した重みテーブルを構築 */
+/** フィーチャーごとのバウンディングボックス面積に比例した重みテーブルを構築。
+ *  MultiPolygon は個々の Polygon に分解して登録することで、離島などの
+ *  分散した形状でもサンプリングのヒット率が落ちないようにする。 */
 function buildWeightTable(features) {
-    const table = features.map(f => ({
-        feature: f,
-        box: computeBbox(f.geometry),
-        cumulative: 0,
-    }));
+    const table = [];
+    for (const feature of features) {
+        const geom = feature.geometry;
+        if (geom.type === 'MultiPolygon') {
+            for (const coords of geom.coordinates) {
+                const poly = { type: 'Polygon', coordinates: coords };
+                table.push({ feature, geometry: poly, box: computeBbox(poly), cumulative: 0 });
+            }
+        } else {
+            table.push({ feature, geometry: geom, box: computeBbox(geom), cumulative: 0 });
+        }
+    }
 
     const totalArea = table.reduce((s, t) => s + bboxArea(t.box), 0);
     let cum = 0;
@@ -198,7 +209,7 @@ function samplePoint(table, maxTries = 300) {
     for (let i = 0; i < maxTries; i++) {
         const t = pickFeature(table);
         const { lat, lng } = randomPointInBbox(t.box);
-        if (pointInGeometry(lat, lng, t.feature.geometry)) {
+        if (pointInGeometry(lat, lng, t.geometry)) {
             return { lat, lng, feature: t.feature };
         }
     }
@@ -222,6 +233,21 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 function isTooClose(lat, lng, collected, minKm) {
     if (minKm <= 0) return false;
     return collected.some(loc => haversineKm(lat, lng, loc.lat, loc.lng) < minKm);
+}
+
+function nearestDistKm(lat, lng, collected) {
+    let min = Infinity;
+    for (const loc of collected) {
+        const d = haversineKm(lat, lng, loc.lat, loc.lng);
+        if (d < min) min = d;
+    }
+    return min;
+}
+
+function percentile95(arr) {
+    if (arr.length === 0) return 0;
+    const sorted = [...arr].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length * 0.95)];
 }
 
 // ──────────────────────────────────────────
@@ -257,7 +283,7 @@ function formatTime(sec) {
     return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function showProgress(collected, total, attempts) {
+function showProgress(collected, total, attempts, consecutiveFail, maxFailDist) {
     const pct = (collected / total * 100).toFixed(1);
     const successRate = attempts > 0 ? (collected / attempts * 100).toFixed(1) : "0.0";
     const elapsed = (Date.now() - progressStartTime) / 1000;
@@ -271,9 +297,15 @@ function showProgress(collected, total, attempts) {
         etaStr = formatTime(remaining);
     }
 
+    const failDistStr = (consecutiveFail > 0 && maxFailDist > 0)
+        ? maxFailDist.toFixed(1) + "km"
+        : "--";
+
     const line =
-        `[${collectedStr} / ${total}] ${pct}%` +
+        `(${collectedStr} / ${total}) ${pct}%` +
         `  試行: ${attempts.toLocaleString('en-US')}` +
+        `  連続失敗: ${consecutiveFail}` +
+        `  最近傍: ${failDistStr}` +
         `  成功率: ${successRate}%` +
         `  経過: ${formatTime(elapsed)}` +
         `  残り予測: ${etaStr}`;
@@ -381,6 +413,9 @@ async function main() {
 
     const weightTable = buildWeightTable(features);
     let attempts = 0;
+    let consecutiveFail = 0;
+    let failDistSamples = [];
+    let maxFailDist = 0;
     progressStartTime = Date.now();
 
     // Ctrl+C でチェックポイント保存してから終了
@@ -408,6 +443,7 @@ async function main() {
             process.exit(1);
         }
 
+        const prevLen = collected.length;
         const batchStart = Date.now();
         attempts += candidates.length;
 
@@ -451,7 +487,12 @@ async function main() {
             const lng = meta.location.lng;
 
             // 最小距離チェック
-            if (isTooClose(lat, lng, collected, args.minDistance)) continue;
+            if (isTooClose(lat, lng, collected, args.minDistance)) {
+                const nd = nearestDistKm(lat, lng, collected);
+                failDistSamples.push(nd);
+                if (nd > maxFailDist) maxFailDist = nd;
+                continue;
+            }
 
             // フィーチャーのプロパティから国コード・州コードを取得
             const props = candidate.feature.properties || {};
@@ -475,7 +516,28 @@ async function main() {
             }
         }
 
-        showProgress(collected.length, args.count, attempts);
+        // バッチ単位で連続失敗カウントを更新（attempts と同粒度になる）
+        if (collected.length > prevLen) {
+            consecutiveFail = 0;
+            failDistSamples = [];
+            maxFailDist = 0;
+        } else {
+            consecutiveFail += candidates.length;
+            if (args.maxConsecutiveFail > 0 && consecutiveFail >= args.maxConsecutiveFail) {
+                process.stdout.write("\n");
+                console.log(`\n連続失敗 ${consecutiveFail} 回に達しました（min-distance=${args.minDistance}km）。チェックポイントを保存して終了します。`);
+                saveCheckpoint(tmpPath, collected);
+                // 95パーセンタイルの最近傍距離をサジェストファイルに書き込む
+                if (failDistSamples.length > 0) {
+                    const suggested = percentile95(failDistSamples);
+                    const suggestPath = outputPath + ".suggest.json";
+                    try { fs.writeFileSync(suggestPath, JSON.stringify({ suggestedMinDist: suggested }), "utf-8"); } catch { }
+                }
+                process.exit(2);
+            }
+        }
+
+        showProgress(collected.length, args.count, attempts, consecutiveFail, maxFailDist);
 
         // レート制限: 100 QPS を超えないよう最小バッチ時間を確保
         // 100 QPS → 1リクエストあたり最低 10ms
