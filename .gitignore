@@ -6,3 +6,9 @@ tools/output/**
 !tools/output/.gitkeep
 !tools/output/areas/.gitkeep
 !tools/output/maps/.gitkeep
+recipes/world-map-generation/output/**
+!recipes/world-map-generation/output/
+!recipes/world-map-generation/output/areas/
+!recipes/world-map-generation/output/maps/
+!recipes/world-map-generation/output/areas/countries/
+!recipes/world-map-generation/output/maps/countries/

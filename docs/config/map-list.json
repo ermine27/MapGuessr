@@ -1,5 +1,14 @@
 [
     {
+        "key": "world-40k",
+        "nameJa": "世界マップ 40K locations",
+        "description": "世界各地のストリートビューロケーション。主要都市から田舎まで幅広く収録。",
+        "scaleS": 1084,
+        "locationCount": 40000,
+        "mapCenter": { "lat": 13.2574, "lng": 148.9567 },
+        "mapZoom": 1
+    },
+    {
         "key": "japan-50k",
         "nameJa": "日本 50K locations",
         "description": "日本全国のストリートビューロケーション。一般道から酷道まで幅広く収録。",
@@ -16,14 +25,5 @@
         "locationCount": 5000,
         "mapCenter": { "lat": 41.7258, "lng": -141.1659 },
         "mapZoom": 1
-    },
-    {
-        "key": "Japan-1000-locations",
-        "nameJa": "日本 1000 locations",
-        "description": "日本全国のストリートビューロケーション。一般道から酷道まで幅広く収録。",
-        "scaleS": 325,
-        "locationCount": 1000,
-        "mapCenter": { "lat": 36, "lng": 138 },
-        "mapZoom": 5
     }
 ]
