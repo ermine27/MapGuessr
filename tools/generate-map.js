@@ -497,7 +497,7 @@ async function main() {
             // フィーチャーのプロパティから国コード・州コードを取得
             const props = candidate.feature.properties || {};
             const countryCode = (props.iso_a2 && props.iso_a2 !== "-99") ? props.iso_a2 : null;
-            const stateCode = props.hasc || null;
+            const stateCode = props.code_hasc || null;
 
             collected.push({
                 panoId: meta.pano_id,
