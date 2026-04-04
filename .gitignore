@@ -12,3 +12,10 @@ recipes/world-map-generation/output/**
 !recipes/world-map-generation/output/maps/
 !recipes/world-map-generation/output/areas/countries/
 !recipes/world-map-generation/output/maps/countries/
+
+recipes/europe-map-generation/output/**
+!recipes/europe-map-generation/output/
+!recipes/europe-map-generation/output/areas/
+!recipes/europe-map-generation/output/maps/
+!recipes/europe-map-generation/output/areas/countries/
+!recipes/europe-map-generation/output/maps/countries/

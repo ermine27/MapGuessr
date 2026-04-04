@@ -1,0 +1,46 @@
+NAME	NAME_JP	CONTINENT	count	percent	min_distance_km
+France	フランス	Europe	4111	8.222%	20
+United Kingdom	イギリス	Europe	3563	7.126%	15
+Norway	ノルウェー	Europe	3198	6.396%	20
+Spain	スペイン	Europe	2970	5.940%	20
+Germany	ドイツ	Europe	2284	4.568%	20
+Italy	イタリア	Europe	2056	4.112%	20
+Sweden	スウェーデン	Europe	1827	3.654%	20
+Czechia	チェコ	Europe	1599	3.198%	15
+Finland	フィンランド	Europe	1599	3.198%	20
+Romania	ルーマニア	Europe	1599	3.198%	20
+Austria	オーストリア	Europe	1370	2.740%	15
+Bulgaria	ブルガリア	Europe	1370	2.740%	20
+Denmark	デンマーク	Europe	1370	2.740%	20
+Hungary	ハンガリー	Europe	1370	2.740%	20
+Poland	ポーランド	Europe	1370	2.740%	20
+Portugal	ポルトガル	Europe	1028	2.056%	15
+Greece	ギリシャ	Europe	1142	2.284%	15
+Croatia	クロアチア	Europe	1142	2.284%	15
+Ireland	アイルランド	Europe	1142	2.284%	20
+Slovakia	スロバキア	Europe	1142	2.284%	20
+Ukraine	ウクライナ	Europe	1142	2.284%	20
+Belgium	ベルギー	Europe	914	1.828%	20
+Switzerland	スイス	Europe	914	1.828%	15
+Estonia	エストニア	Europe	914	1.828%	20
+Iceland	アイスランド	Europe	914	1.828%	20
+Lithuania	リトアニア	Europe	914	1.828%	15
+Latvia	ラトビア	Europe	914	1.828%	15
+Slovenia	スロベニア	Europe	914	1.828%	15
+Netherlands	オランダ	Europe	685	1.370%	15
+Serbia	セルビア	Europe	685	1.370%	20
+Albania	アルバニア	Europe	457	0.914%	20
+Bosnia and Herz.	ボスニア・ヘルツェゴビナ	Europe	457	0.914%	20
+Liechtenstein	リヒテンシュタイン	Europe	457	0.914%	2
+Luxembourg	ルクセンブルク	Europe	457	0.914%	2
+Montenegro	モンテネグロ	Europe	457	0.914%	15
+North Macedonia	北マケドニア	Europe	457	0.914%	15
+Åland	オーランド諸島	Europe	228	0.456%	5
+Andorra	アンドラ	Europe	137	0.274%	10
+Faeroe Is.	フェロー諸島	Europe	137	0.274%	3
+Isle of Man	マン島	Europe	137	0.274%	5
+Malta	マルタ	Europe	137	0.274%	3
+Jersey	ジャージー	Europe	91	0.182%	3
+Monaco	モナコ	Europe	91	0.182%	1
+Gibraltar	ジブラルタル	Europe	69	0.138%	1
+San Marino	サンマリノ	Europe	69	0.138%	1
