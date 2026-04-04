@@ -10,6 +10,7 @@
 tools/
 ├── extract-area.js                     エリア抽出 CLI
 ├── generate-map.js                     マップ生成 CLI
+├── enrich-map.js                       既存マップ補完 CLI
 ├── calc-map-params.js                  マップパラメータ計算 CLI
 ├── preview-area.html                   GeoJSONビューワー
 ├── preview-map.html                    マップJSONビューワー
@@ -86,7 +87,7 @@ tools/
 }
 ```
 
-`generate-map.js` は `iso_a2` → `countryCode`、`hasc` → `stateCode` として出力 JSON に書き込みます。
+`generate-map.js` は `iso_a2` → `countryCode`、州境GeoJSONの `code_hasc`（一部フォールバックで `hasc`）→ `stateCode` として出力 JSON に書き込みます。既存マップに対する後付け補完は `enrich-map.js` が担当します。
 
 ---
 
@@ -257,7 +258,43 @@ GET https://maps.googleapis.com/maps/api/streetview/metadata
 - `status === "REQUEST_DENIED"` / `"OVER_QUERY_LIMIT"` → 即エラー終了
 - その他 `status !== "OK"` → スキップ
 - `--official-only` 時: 著作権表示に “Google” が含まれていないパノラマはスキップ（Google オフィシャルのパノラマのみ採用）
+- `stateCode` は `ne_10m_admin_1_states_provinces.geojson` を国コード別にインデックス化し、Street View API が返した実座標に対して PIP 判定して解決する
 - **APIコスト: 無料**（Street View Static API の Metadata エンドポイントは課金対象外）
+
+---
+
+## enrich-map.js
+
+既存のマップ JSON に対して `countryCode` / `stateCode` を後付け・再計算するための補完ツールです。旧生成物の再利用や、仕様変更後の一括更新に使います。
+
+### 主な用途
+
+- 過去に生成したマップにコード情報を追記する
+- `countryCode` / `stateCode` が `null` のファイルを再計算する
+- `--force` で既存値を含めて再解決する
+
+### 処理フロー
+
+```
+入力JSON読み込み
+    ↓
+国境GeoJSON / 州境GeoJSON 読み込み
+    ↓
+bbox 付きルックアップテーブル構築
+    ↓
+各ロケーションについて
+  ├── countryCode を PIP で補完
+  └── stateCode を PIP で補完
+    ↓
+入力ファイルを上書き、または --output 先に保存
+```
+
+### 実装メモ
+
+- 国コードは `ISO_A2` / `iso_a2` を優先して採用
+- 州コードは `code_hasc` を優先し、必要に応じて `hasc` をフォールバック
+- 速度改善のため、国・州ともに bbox による事前フィルタ後に PIP 判定を行う
+- 出力は `generate-map.js` と同じ 1ロケーション1行の compact JSON 形式
 
 ### レート制限
 

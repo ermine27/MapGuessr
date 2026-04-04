@@ -1,11 +1,12 @@
 # MapGuessr Tools — 利用者向けガイド
 
-`tools/` ディレクトリには、マップデータを作成・検証するための3つのCLIスクリプトと2つのHTMLビューワーが含まれています。
+`tools/` ディレクトリには、マップデータを作成・検証するためのCLIスクリプトとHTMLビューワーが含まれています。
 
 ```
 tools/
 ├── extract-area.js      エリア（国・州・大陸）のGeoJSONを抽出するCLIツール
 ├── generate-map.js      Street Viewロケーションを自動収集してマップJSONを生成するCLIツール
+├── enrich-map.js        既存マップJSONに countryCode / stateCode を後付けするCLIツール
 ├── calc-map-params.js   マップのスコアパラメータを計算するCLIツール
 ├── preview-area.html    GeoJSONエリアファイルをブラウザで確認するビューワー
 ├── preview-map.html     生成済みマップJSONをブラウザで確認するビューワー
@@ -22,15 +23,17 @@ tools/
 ## 典型的なワークフロー
 
 ```
-1. extract-area.js  →  エリアGeoJSONを生成
-         ↓
+1. extract-area.js   →  エリアGeoJSONを生成
+          ↓
 2. preview-area.html →  エリアの形状をブラウザで確認
-         ↓
-3. generate-map.js  →  マップJSONを生成（Street View Metadata API使用）
-         ↓
-4. preview-map.html →  生成されたピンをブラウザで確認
-         ↓
-5. calc-map-params.js →  スコアパラメータを計算し、map-list.json に反映
+          ↓
+3. generate-map.js   →  マップJSONを生成（Street View Metadata API使用）
+          ↓
+4. enrich-map.js     →  既存マップや旧生成物にコード情報を補完
+          ↓
+5. preview-map.html  →  生成されたピンをブラウザで確認
+          ↓
+6. calc-map-params.js →  スコアパラメータを計算し、map-list.json に反映
 ```
 
 ---
@@ -38,7 +41,7 @@ tools/
 ## 事前準備
 
 ### Node.js
-`extract-area.js`、`generate-map.js`、`calc-map-params.js` の実行に Node.js（v14以降）が必要です。
+`extract-area.js`、`generate-map.js`、`enrich-map.js`、`calc-map-params.js` の実行に Node.js（v14以降）が必要です。
 
 ### Google Maps API キー
 `generate-map.js` と HTML ビューワーの使用に必要です。  
@@ -206,7 +209,52 @@ node tools/generate-map.js \
 
 ---
 
-## 3. calc-map-params.js — マップパラメータの計算
+## 3. enrich-map.js — 既存マップのコード補完
+
+既に作成済みのマップJSONに対して、`countryCode` と `stateCode` を後付けで設定します。
+
+`generate-map.js` の最新版では新規生成時にコードが出力されますが、過去の生成物や旧フォーマットのJSONを補完したいときに `enrich-map.js` を使います。
+
+### 使い方
+
+```bash
+node tools/enrich-map.js <map-file> [options]
+```
+
+### 使用例
+
+```bash
+# 既存ファイルをそのまま上書き
+node tools/enrich-map.js docs/maps/usa-5k.json
+
+# 別ファイルとして保存
+node tools/enrich-map.js docs/maps/world-40k.json --output docs/maps/world-40k-enriched.json
+
+# 既存の値も含めて強制再計算
+node tools/enrich-map.js docs/maps/japan-50k.json --force
+```
+
+### オプション
+
+| オプション | デフォルト | 説明 |
+|-----------|-----------|------|
+| `--countries <path>` | `tools/areas/ne_10m_admin_0_countries.geojson` | 国境GeoJSONのパス |
+| `--states <path>` | `tools/areas/ne_10m_admin_1_states_provinces.geojson` | 州境GeoJSONのパス |
+| `--output <path>` | 入力ファイルを上書き | 出力ファイルパス |
+| `--force` | — | `null` でない `countryCode` / `stateCode` も上書き |
+| `--no-country` | — | `countryCode` の補完をスキップ |
+| `--no-state` | — | `stateCode` の補完をスキップ |
+| `-h, --help` | — | ヘルプ表示 |
+
+### 補足
+
+- `countryCode` は国境GeoJSONの `ISO_A2` / `iso_a2` を使って補完します
+- `stateCode` は州境GeoJSONの `code_hasc` を PIP 判定で検索して補完します
+- 小国や州境データ未整備の地域では `stateCode` が `null` のまま残ることがあります
+
+---
+
+## 4. calc-map-params.js — マップパラメータの計算
 
 マップ JSON を読み込み、スコア式のスケール定数 `S` と `map-list.json` 用のパラメータを算出します。
 
