@@ -157,13 +157,22 @@ function pointInGeometry(lat, lng, geometry) {
 // 重み付きフィーチャー選択
 // ──────────────────────────────────────────
 
-/** フィーチャーごとのバウンディングボックス面積に比例した重みテーブルを構築 */
+/** フィーチャーごとのバウンディングボックス面積に比例した重みテーブルを構築。
+ *  MultiPolygon は個々の Polygon に分解して登録することで、離島などの
+ *  分散した形状でもサンプリングのヒット率が落ちないようにする。 */
 function buildWeightTable(features) {
-    const table = features.map(f => ({
-        feature: f,
-        box: computeBbox(f.geometry),
-        cumulative: 0,
-    }));
+    const table = [];
+    for (const feature of features) {
+        const geom = feature.geometry;
+        if (geom.type === 'MultiPolygon') {
+            for (const coords of geom.coordinates) {
+                const poly = { type: 'Polygon', coordinates: coords };
+                table.push({ feature, geometry: poly, box: computeBbox(poly), cumulative: 0 });
+            }
+        } else {
+            table.push({ feature, geometry: geom, box: computeBbox(geom), cumulative: 0 });
+        }
+    }
 
     const totalArea = table.reduce((s, t) => s + bboxArea(t.box), 0);
     let cum = 0;
