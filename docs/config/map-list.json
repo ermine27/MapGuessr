@@ -2,7 +2,7 @@
     {
         "key": "world-40k",
         "nameJa": "世界マップ 40K locations",
-        "description": "世界各地のストリートビューロケーション。主要都市から田舎まで幅広く収録。",
+        "description": "世界各地の主要都市から田舎まで幅広く収録。",
         "scaleS": 1084,
         "locationCount": 40000,
         "mapCenter": { "lat": 13.2574, "lng": 148.9567 },
@@ -11,16 +11,25 @@
     {
         "key": "japan-50k",
         "nameJa": "日本 50K locations",
-        "description": "日本全国のストリートビューロケーション。一般道から酷道まで幅広く収録。",
+        "description": "日本全国の一般道から酷道まで幅広く収録。",
         "scaleS": 208,
         "locationCount": 50000,
         "mapCenter": { "lat": 34.8871, "lng": 134.7679 },
         "mapZoom": 3
     },
     {
+        "key": "europa-50k",
+        "nameJa": "ヨーロッパ 50K locations",
+        "description": "ヨーロッパ各地。（ロシア、中東は除く）",
+        "scaleS": 953,
+        "locationCount": 50000,
+        "mapCenter": { "lat": 29.2373, "lng": -2.6357 },
+        "mapZoom": 1
+    },
+    {
         "key": "usa-5k",
         "nameJa": "アメリカ 5K locations",
-        "description": "アメリカ合衆国のストリートビューロケーション。都市部から田舎まで幅広く収録。",
+        "description": "アメリカ合衆国の一般道から田舎まで幅広く収録。",
         "scaleS": 554,
         "locationCount": 5000,
         "mapCenter": { "lat": 41.7258, "lng": -141.1659 },
