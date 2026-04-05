@@ -100,11 +100,11 @@ body {
     pointer-events: none;
 }
 
-#logo-dummy {
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 0.9rem;
-    font-weight: bold;
-    letter-spacing: 0.05em;
+#site-logo-image {
+    display: block;
+    width: 250px;
+    height: 50px;
+    object-fit: contain;
 }
 
 #version-info {
