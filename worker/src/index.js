@@ -1,5 +1,3 @@
-import mapList from '../../docs/config/map-list.json';
-
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
 	'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -17,8 +15,27 @@ function jsonResponse(data, init = {}) {
 	});
 }
 
+async function fetchAsset(env, request, assetPath) {
+	const assetUrl = new URL(request.url);
+	assetUrl.pathname = assetPath;
+	assetUrl.search = '';
+	return env.ASSETS.fetch(new Request(assetUrl.toString(), { method: 'GET' }));
+}
+
+function withCors(response) {
+	const headers = new Headers(response.headers);
+	Object.entries(corsHeaders).forEach(function ([key, value]) {
+		headers.set(key, value);
+	});
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers
+	});
+}
+
 export default {
-	async fetch(request) {
+	async fetch(request, env) {
 		const url = new URL(request.url);
 
 		if (request.method === 'OPTIONS') {
@@ -30,13 +47,20 @@ export default {
 		}
 
 		if (url.pathname === '/api/maps') {
-			return jsonResponse(mapList);
+			const response = await fetchAsset(env, request, '/config/map-list.json');
+			return withCors(response);
 		}
 
-		return new Response('Not Found', {
-			status: 404,
-			headers: corsHeaders
-		});
+		if (url.pathname === '/api/map-data') {
+			const key = url.searchParams.get('key') || '';
+			if (!/^[a-z0-9-]+$/i.test(key)) {
+				return jsonResponse({ error: 'Invalid map key' }, { status: 400 });
+			}
+			const response = await fetchAsset(env, request, '/maps/' + key + '.json');
+			return withCors(response);
+		}
+
+		return env.ASSETS.fetch(request);
 	}
 };
 

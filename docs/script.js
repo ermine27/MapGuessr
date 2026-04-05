@@ -394,17 +394,16 @@ function startGame() {
 }
 
 // ============================================================
-// マップデータ読み込み（fetch）
+// マップデータ読み込み（API優先 + 静的ファイルフォールバック）
 // ============================================================
 function loadMapData(mapKey, callback) {
     if (window.MAPGUESSR_LOCATIONS && window.MAPGUESSR_LOCATIONS[mapKey]) {
         callback();
         return;
     }
-    fetch('maps/' + mapKey + '.json')
-        .then(function (res) {
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            return res.json();
+    fetchJson(getApiUrl('/api/map-data?key=' + encodeURIComponent(mapKey)))
+        .catch(function () {
+            return fetchJson('maps/' + mapKey + '.json');
         })
         .then(function (data) {
             if (!window.MAPGUESSR_LOCATIONS) window.MAPGUESSR_LOCATIONS = {};
