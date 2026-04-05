@@ -55,8 +55,11 @@ var NORTH_ROTATE_SPEED = 540; // degrees/second（大きくすると速く、小
 
 // ---- マップ設定 ----
 var currentMapKey = 'Japan-1000-locations'; // 使用するマップ（maps/ フォルダのファイル名と対応）
-var mapList = [];           // map-list.json から読み込んだマップ一覧
+var mapList = [];           // API または map-list.json から読み込んだマップ一覧
 var currentMapInfo = null;  // 選択中マップの情報（key, nameJa, scaleS 等）
+var apiBaseUrl = (window.MAPGUESSR_API_BASE || localStorage.getItem('mapguessr_api_base') ||
+    ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:8787' : '')
+).replace(/\/$/, '');
 
 // ---- 表示設定 ----
 var showMapLabels = true; // true: 国名・地名等を表示、false: 非表示
@@ -129,14 +132,24 @@ function getMapView(zoomOffset) {
 // ============================================================
 // マップリスト読み込み・選択
 // ============================================================
+function getApiUrl(path) {
+    return (apiBaseUrl ? apiBaseUrl : '') + path;
+}
+
+function fetchJson(url) {
+    return fetch(url).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' @ ' + url);
+        return res.json();
+    });
+}
+
 function loadMapList(callback) {
-    fetch('config/map-list.json')
-        .then(function (res) {
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            return res.json();
+    fetchJson(getApiUrl('/api/maps'))
+        .catch(function () {
+            return fetchJson('config/map-list.json');
         })
         .then(function (data) {
-            mapList = Array.isArray(data) ? data : [];
+            mapList = Array.isArray(data) ? data : (Array.isArray(data.maps) ? data.maps : []);
             if (mapList.length > 0) {
                 currentMapInfo = mapList[0];
                 currentMapKey = currentMapInfo.key;

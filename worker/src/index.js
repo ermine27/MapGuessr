@@ -1,15 +1,42 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import mapList from '../../docs/config/map-list.json';
+
+const corsHeaders = {
+	'Access-Control-Allow-Origin': '*',
+	'Access-Control-Allow-Methods': 'GET, OPTIONS',
+	'Access-Control-Allow-Headers': 'Content-Type'
+};
+
+function jsonResponse(data, init = {}) {
+	return new Response(JSON.stringify(data, null, 2), {
+		status: init.status || 200,
+		headers: {
+			'Content-Type': 'application/json; charset=utf-8',
+			...corsHeaders,
+			...(init.headers || {})
+		}
+	});
+}
 
 export default {
-	async fetch(request, env, ctx) {
-		return new Response("Hello World!");
-	},
+	async fetch(request) {
+		const url = new URL(request.url);
+
+		if (request.method === 'OPTIONS') {
+			return new Response(null, { headers: corsHeaders });
+		}
+
+		if (url.pathname === '/api/health') {
+			return jsonResponse({ ok: true });
+		}
+
+		if (url.pathname === '/api/maps') {
+			return jsonResponse(mapList);
+		}
+
+		return new Response('Not Found', {
+			status: 404,
+			headers: corsHeaders
+		});
+	}
 };
+
